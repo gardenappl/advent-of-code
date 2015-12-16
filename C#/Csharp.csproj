@@ -47,14 +47,17 @@
   <ItemGroup>
     <Compile Include="Day1.cs" />
     <Compile Include="Day.cs" />
+    <Compile Include="Day15.cs" />
     <Compile Include="Day2.cs" />
     <Compile Include="Day3.cs" />
     <Compile Include="Day4.cs" />
     <Compile Include="Day5.cs" />
     <Compile Include="Day6.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="Day1Input.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -70,6 +73,12 @@
     <None Include="Day5Input.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Day6Input.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
