@@ -7,21 +7,13 @@ namespace AdventOfCode
 {
 	public class Day6 : Day
 	{
-		public static bool isPart2 = false;
+		public static bool isPart2;
 		
 		struct Lamp
 		{
-			public int Brightness
-			{
-				get;
-				private set;
-			}
+			public int Brightness{ get; private set; }
 			
-			public bool TurnedOn
-			{
-				get;
-				private set;
-			}
+			public bool TurnedOn{ get; private set; }
 			
 			public void TurnOn()
 			{
@@ -68,7 +60,7 @@ namespace AdventOfCode
 		
 		static Lamp[,] FollowInstructions()
 		{
-			var lamps = new Lamp[1000,1000];
+			var lamps = new Lamp[1000, 1000];
 			using(var file = new StreamReader("Day6Input.txt"))
 			{
 				do

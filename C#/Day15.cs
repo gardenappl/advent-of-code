@@ -23,7 +23,8 @@ namespace AdventOfCode
 			{
 				var ingredient = new Ingredient();
 				
-				string pattern = @"^(\w+): capacity (-?\d+), durability (-?\d+), flavor (-?\d+), texture (-?\d+), calories (-?\d+)$"; //Regex is just too good
+				string pattern = @"^(\w+): capacity (-?\d+), durability (-?\d+), flavor (-?\d+), texture (-?\d+), calories (-?\d+)$";
+				
 				if(!Regex.IsMatch(line, pattern))
 					return new Ingredient();
 				Match match = Regex.Match(line, pattern);
@@ -40,13 +41,8 @@ namespace AdventOfCode
 		
 		public override void Solve()
 		{
-			using(var file = new StreamReader("Day15Input.txt"))
-			{
-				do
-				{
-					ingredients.Add(Ingredient.Parse(file.ReadLine()));
-				} while(!file.EndOfStream);
-			}
+			foreach(string line in File.ReadAllLines("Day15Input.txt"))
+				ingredients.Add(Ingredient.Parse(line));
 			Console.WriteLine("Best cookie score: " + LoopRecipes(new int[ingredients.Count]));
 			Console.WriteLine("Best cookie score with 500 calories: " + LoopRecipes(new int[ingredients.Count], requiredCalories: 500));
 		}
