@@ -34,21 +34,13 @@ namespace AdventOfCode
 			{
 				if(!isPart2)
 					TurnedOn = false;
-				else
-				{
-					if(Brightness != 0)
+				else if(Brightness != 0)
 						Brightness--;
-				}
 			}
 			public void Toggle()
 			{
 				if(!isPart2) 
-				{
-					if(TurnedOn)
-						TurnedOn = false;
-					else
-						TurnedOn = true;
-				}
+					TurnedOn = !TurnedOn;
 				else
 					Brightness += 2;
 			}
@@ -62,7 +54,7 @@ namespace AdventOfCode
 			foreach(var lamp in lamps)
 				if(lamp.TurnedOn)
 					turnedOnLamps++;
-			Console.WriteLine("Result 1: " + turnedOnLamps);
+			Console.WriteLine("Turned on lamps: " + turnedOnLamps);
 			
 			isPart2 = true;
 			
@@ -71,7 +63,7 @@ namespace AdventOfCode
 			int totalBrightness = 0;
 			foreach(var lamp in lamps)
 				totalBrightness += lamp.Brightness;
-			Console.WriteLine("Result 2: " + totalBrightness);
+			Console.WriteLine("Total brightness: " + totalBrightness);
 		}
 		
 		static Lamp[,] FollowInstructions()
@@ -85,11 +77,16 @@ namespace AdventOfCode
 					string pattern = @"(?<cmd>turn on|turn off|toggle) (?<stX>\d+),(?<stY>\d+) through (?<endX>\d+),(?<endY>\d+)";
 					
 					var match = Regex.Match(line, pattern);
-					for(int x = Convert.ToInt32(match.Groups["stX"].Value); x <= Convert.ToInt32(match.Groups["endX"].Value); x++)
+					int stX = Convert.ToInt32(match.Groups["stX"].Value);
+					int endX = Convert.ToInt32(match.Groups["endX"].Value);
+					int stY = Convert.ToInt32(match.Groups["stY"].Value);
+					int endY = Convert.ToInt32(match.Groups["endY"].Value);
+					string op = match.Groups["cmd"].Value;
+					for(int x = stX; x <= endX; x++)
 					{
-						for(int y = Convert.ToInt32(match.Groups["stY"].Value); y <= Convert.ToInt32(match.Groups["endY"].Value); y++)
+						for(int y = stY; y <= endY; y++)
 						{
-							switch(match.Groups["cmd"].Value)
+							switch(op)
 							{
 								case "turn on":
 									lamps[x, y].TurnOn();
@@ -103,10 +100,8 @@ namespace AdventOfCode
 							}
 						}
 					}
-					Console.Write('.');
 				}while(!file.EndOfStream);
 			}
-			Console.WriteLine();
 			return lamps;
 		}
 	}

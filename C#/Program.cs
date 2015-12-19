@@ -17,6 +17,8 @@ namespace AdventOfCode
 			days[4] = new Day4();
 			days[5] = new Day5();
 			days[6] = new Day6();
+			days[15] = new Day15();
+			days[17] = new Day17();
 			
 			for(int i = 1; i <= 25; i++) //A little thing that shows which days have solutions
 			{
@@ -62,5 +64,6 @@ namespace AdventOfCode
 			Console.WriteLine("Press any key to continue...");
 			Console.ReadKey();
 		}
+		
 	}
 }

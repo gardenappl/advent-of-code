@@ -23,17 +23,17 @@ namespace AdventOfCode
 			
 			using(var file = new StreamReader("Day5Input.txt"))
 			{
-				for(int i = 0; !file.EndOfStream; i++)
+				do
 				{
 					string line = file.ReadLine();
 					if(!Regex.IsMatch(line, naughtyPattern) && Regex.IsMatch(line, vowelPattern) && Regex.IsMatch(line, repeatPattern))
 						niceStringsPart1++;
 					if(Regex.IsMatch(line, repeatBetweenPattern) && Regex.IsMatch(line, pairRepeatPattern))
 						niceStringsPart2++;
-				}
+				}while(!file.EndOfStream);
 			}
-			Console.WriteLine("Result 1: " + niceStringsPart1);
-			Console.WriteLine("Result 2: " + niceStringsPart2);
+			Console.WriteLine("Nice strings 1: " + niceStringsPart1);
+			Console.WriteLine("Nice strings 2: " + niceStringsPart2);
 		}
 	}
 }

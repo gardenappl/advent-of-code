@@ -39,11 +39,10 @@ namespace AdventOfCode
 					
 					totalRibbon += 2 * (sortedDimensions[0] + sortedDimensions[1]); //Perimeter of the smallest side
 					totalRibbon += X * Y * Z;
-				}
-				while(!file.EndOfStream);
+				} while(!file.EndOfStream);
 			}
-			Console.WriteLine("Result 1: {0}", totalPaper);
-			Console.WriteLine("Result 2: {0}", totalRibbon);
+			Console.WriteLine("Total paper: " + totalPaper);
+			Console.WriteLine("Total ribbon: " + totalRibbon);
 		}
 		
 		int[] Sort(params int[] ints)

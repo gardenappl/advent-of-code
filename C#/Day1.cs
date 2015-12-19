@@ -29,8 +29,8 @@ namespace AdventOfCode
 						basementFloorIndex = i + 1;
 				}
 				
-				Console.WriteLine("Result 1: {0}", floor);
-				Console.WriteLine("Result 2: {0}", basementFloorIndex);
+				Console.WriteLine("Finish floor: " + floor);
+				Console.WriteLine("First time when Santa entered basement: " + basementFloorIndex);
 			}
 		}
 	}

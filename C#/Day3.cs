@@ -76,13 +76,13 @@ namespace AdventOfCode
 			
 			using(var file = new StreamReader("Day3Input.txt"))
 			{
-				for(int i = 0; !file.EndOfStream; i++)
+				do
 				{
 					visitedHouses.Add(santaPos);
 					santaPos.Move((char)file.Read());
-				}
+				} while(!file.EndOfStream);
 			}
-			Console.WriteLine("Result 1: {0}", visitedHouses.Count);
+			Console.WriteLine("Santa delivered: " + visitedHouses.Count);
 		}
 		
 		static void SolvePart2()
@@ -111,7 +111,7 @@ namespace AdventOfCode
 					}
 				}
 			}
-			Console.WriteLine("Result 2: {0}", visitedHouses.Count);
+			Console.WriteLine("Santa + RoboSanta delivered: " + visitedHouses.Count);
 		}
 	}
 }
