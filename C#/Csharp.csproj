@@ -47,8 +47,10 @@
   <ItemGroup>
     <Compile Include="Day1.cs" />
     <Compile Include="Day.cs" />
+    <Compile Include="Day14.cs" />
     <Compile Include="Day15.cs" />
     <Compile Include="Day17.cs" />
+    <Compile Include="Day18.cs" />
     <Compile Include="Day2.cs" />
     <Compile Include="Day3.cs" />
     <Compile Include="Day4.cs" />
@@ -59,10 +61,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="Day14Input.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Day15Input.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Day17Input.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Day18Input.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Day1Input.txt">

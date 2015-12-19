@@ -17,8 +17,10 @@ namespace AdventOfCode
 			days[4] = new Day4();
 			days[5] = new Day5();
 			days[6] = new Day6();
+			days[14] = new Day14();
 			days[15] = new Day15();
 			days[17] = new Day17();
+			days[18] = new Day18();
 			
 			for(int i = 1; i <= 25; i++) //A little thing that shows which days have solutions
 			{
