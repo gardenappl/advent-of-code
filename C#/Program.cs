@@ -17,10 +17,14 @@ namespace AdventOfCode
 			days[4] = new Day4();
 			days[5] = new Day5();
 			days[6] = new Day6();
+			days[7] = new Day7();
+			days[8] = new Day8();
 			days[14] = new Day14();
 			days[15] = new Day15();
+			days[16] = new Day16();
 			days[17] = new Day17();
 			days[18] = new Day18();
+			days[19] = new Day19();
 			
 			for(int i = 1; i <= 25; i++) //A little thing that shows which days have solutions
 			{
@@ -51,6 +55,7 @@ namespace AdventOfCode
 			}
 			
 			Console.ForegroundColor = ConsoleColor.Green;
+			bool success = true;
 			var watch = Stopwatch.StartNew();
 			try
 			{
@@ -58,11 +63,15 @@ namespace AdventOfCode
 			}
 			catch(Exception e)
 			{
+				success = false;
 				Console.WriteLine(e);
 			}
 			watch.Stop();
 			Console.ForegroundColor = ConsoleColor.Gray;
-			Console.WriteLine("Solution took {0} milliseconds.", watch.ElapsedMilliseconds);
+			if(success)
+				Console.WriteLine("Solution took {0} milliseconds.", watch.ElapsedMilliseconds);
+			else
+				Console.WriteLine("Things crashed!");
 			Console.WriteLine("Press any key to continue...");
 			Console.ReadKey();
 		}

@@ -16,9 +16,6 @@ namespace AdventOfCode
 			var comboList = new List<bool[]>();
 			GetPossibleCombinations(comboList, new bool[containers.Length]);
 			
-//			foreach(bool[] combo in comboList)
-//				PrintCombination(combo);
-			
 			Console.WriteLine("Possible combinations: " + comboList.Count);
 			
 			int minContainersUsed = Int32.MaxValue;

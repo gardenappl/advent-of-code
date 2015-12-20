@@ -17,8 +17,8 @@ namespace AdventOfCode
 			int niceStringsPart1 = 0;
 			
 			//Part 2 patterns
-			const string repeatBetweenPattern = @"(\w)\w\1"; //Nice strings contain a letter which repeats with exactly one letter between them
-			const string pairRepeatPattern = @"(\w\w)\w*\1"; //Nice strings contain a pair of letters which repeats without overlapping (e.g. "lloll" but not "kkk")
+			const string repeatBetweenPattern = @"(\w)\w\1"; //Nice strings contain a letter which repeats with exactly one letter between them (e.g. "lol" or "asdfd")
+			const string pairRepeatPattern = @"(\w\w)\w*\1"; //Nice strings contain a pair of letters which repeats without overlapping (e.g. "heyokdudeok" or "lloll" but not "kkk")
 			int niceStringsPart2 = 0;
 			
 			using(var file = new StreamReader("Day5Input.txt"))

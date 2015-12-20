@@ -8,9 +8,7 @@ namespace AdventOfCode
 {
 	public class Day15 : Day
 	{
-		static List<Ingredient> ingredients = new List<Ingredient>();
-		
-		public struct Ingredient
+		struct Ingredient
 		{
 			public string Name;
 			public int Capacity;
@@ -19,30 +17,31 @@ namespace AdventOfCode
 			public int Texture;
 			public int Calories;
 			
-			public static Ingredient Parse(string line)
+			const string pattern = @"^(\w+): capacity (-?\d+), durability (-?\d+), flavor (-?\d+), texture (-?\d+), calories (-?\d+)$";
+			
+			public Ingredient(string line)
 			{
-				var ingredient = new Ingredient();
-				
-				string pattern = @"^(\w+): capacity (-?\d+), durability (-?\d+), flavor (-?\d+), texture (-?\d+), calories (-?\d+)$";
-				
-				if(!Regex.IsMatch(line, pattern))
-					return new Ingredient();
 				Match match = Regex.Match(line, pattern);
 				
-				ingredient.Name = match.Groups[1].Value;
-				ingredient.Capacity = Int32.Parse(match.Groups[2].Value);
-				ingredient.Durability = Int32.Parse(match.Groups[3].Value);
-				ingredient.Flavor = Int32.Parse(match.Groups[4].Value);
-				ingredient.Texture = Int32.Parse(match.Groups[5].Value);
-				ingredient.Calories = Int32.Parse(match.Groups[6].Value);
-				return ingredient;
+				if(!match.Success)
+					throw new ArgumentException("Ingredient descritption is invalid", "line");
+				
+				Name = match.Groups[1].Value;
+				Capacity = Int32.Parse(match.Groups[2].Value);
+				Durability = Int32.Parse(match.Groups[3].Value);
+				Flavor = Int32.Parse(match.Groups[4].Value);
+				Texture = Int32.Parse(match.Groups[5].Value);
+				Calories = Int32.Parse(match.Groups[6].Value);
 			}
 		}
+		
+		
+		static List<Ingredient> ingredients = new List<Ingredient>();
 		
 		public override void Solve()
 		{
 			foreach(string line in File.ReadAllLines("Day15Input.txt"))
-				ingredients.Add(Ingredient.Parse(line));
+				ingredients.Add(new Ingredient(line));
 			Console.WriteLine("Best cookie score: " + LoopRecipes(new int[ingredients.Count]));
 			Console.WriteLine("Best cookie score with 500 calories: " + LoopRecipes(new int[ingredients.Count], requiredCalories: 500));
 		}

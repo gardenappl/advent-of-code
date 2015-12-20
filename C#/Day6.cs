@@ -58,7 +58,7 @@ namespace AdventOfCode
 			Console.WriteLine("Total brightness: " + totalBrightness);
 		}
 		
-		static Lamp[,] FollowInstructions()
+		Lamp[,] FollowInstructions()
 		{
 			var lamps = new Lamp[1000, 1000];
 			using(var file = new StreamReader("Day6Input.txt"))

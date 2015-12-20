@@ -69,7 +69,7 @@ namespace AdventOfCode
 			SolvePart2();
 		}
 		
-		static void SolvePart1()
+		void SolvePart1()
 		{
 			var santaPos = new Coordinate(0, 0);
 			var visitedHouses = new HashSet<Coordinate>();
@@ -85,7 +85,7 @@ namespace AdventOfCode
 			Console.WriteLine("Santa delivered: " + visitedHouses.Count);
 		}
 		
-		static void SolvePart2()
+		void SolvePart2()
 		{
 			var santaPos = new Coordinate(0, 0);
 			var roboSantaPos = new Coordinate(0, 0);
