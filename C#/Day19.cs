@@ -33,9 +33,8 @@ namespace AdventOfCode
 			
 			
 			Console.WriteLine("Calibration result: " + Calibrate(molecule, replacements));
-			Console.WriteLine("Test fabrication result: " + Fabricate("HOH", testReplacements));
-			//Console.WriteLine("Fabrication result: " + Fabricate(molecule, replacements));
-			Console.WriteLine("Actual fabrication result: I'll never solve that. Nope.");
+			Console.WriteLine("Test fabrication result: " + Fabricate("HOH", testReplacements, print: true));
+			Console.WriteLine("Actual fabrication result: " + Fabricate(molecule, replacements));
 		}
 		
 		int Calibrate(string molecule, List<Tuple<string, string>> replacements)
@@ -54,25 +53,29 @@ namespace AdventOfCode
 			return createdMolecules.Count;
 		}
 		
-		int Fabricate(string neededResult, List<Tuple<string, string>> replacements, string molecule = "e", int steps = 0)
+		int Fabricate(string molecule, List<Tuple<string, string>> replacements, int steps = 0, bool print = false)
 		{
-			if(molecule.Length >= neededResult.Length)
-				return molecule == neededResult ? steps : Int32.MaxValue;
+			if(molecule == "e")
+				return steps;
 			
-			int leastSteps = Int32.MaxValue;
 			foreach(var replacement in replacements)
 			{
 				int index = -1;
-				while((index = molecule.IndexOf(replacement.Item1, index + 1)) != -1)
+				while((index = molecule.IndexOf(replacement.Item2, index + 1)) != -1)
 				{
-					string moleculeN = molecule.Remove(index, replacement.Item1.Length).Insert(index, replacement.Item2);
-//					for(int i = 0; i < steps; i++)
-//						Console.Write(' ');
-//					Console.WriteLine(molecule + " -> " + moleculeN);
-					leastSteps = Math.Min(leastSteps, Fabricate(neededResult, replacements, moleculeN, steps + 1));
+					string moleculeN = molecule.Remove(index, replacement.Item2.Length).Insert(index, replacement.Item1);
+					if(print)
+					{
+						for(int i = 0; i < steps; i++)
+							Console.Write(' ');
+						Console.WriteLine(molecule + " -> " + moleculeN);
+					}
+					int result = Fabricate(moleculeN, replacements, steps + 1, print);
+					if(result != -1)
+						return result;
 				}
 			}
-			return leastSteps;
+			return -1;
 		}
 	}
 }
