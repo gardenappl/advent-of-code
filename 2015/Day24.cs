@@ -18,36 +18,39 @@ namespace AdventOfCode
 			for(int line = 0; line < input.Length; line++)
 				packages[line] = Int32.Parse(input[line]);
 			
-			
 			Console.WriteLine("\nSmallest QE: " + FindBestCombo(packages, 3));
 			Console.WriteLine("\nSmallest QE: " + FindBestCombo(packages, 4));
 		}
 		
-		long FindBestCombo(int[] packages, int groups)
+		BigInteger FindBestCombo(int[] packages, int groups)
 		{
 			packages = packages.OrderByDescending(x => x).ToArray();
 			int groupWeight = packages.Sum(x => x) / groups;
 			
-			long smallestQE = Int64.MaxValue;
-			int smallest1 = (int)Math.Ceiling((double)packages.Count() / groups);
-			FindBestComboRecursive(packages, groupWeight, groups, new bool[packages.Length], ref smallestQE, ref smallest1);
+			BigInteger smallestQE = -1;
+			int smallest1 = packages.Count() / groups + 1;
+			FindBestComboRecursive(packages, groupWeight, groups, new int[packages.Length], ref smallestQE, ref smallest1);
 			return smallestQE;
 		}
 		
-		void FindBestComboRecursive(int[] packages, int neededWeight, int groupsAmount, bool[] firstGroup, ref long smallestQE, ref int smallest1, int index = 0)
+		/* A "group" array contains has the same length as "packages" and it's integers are stored in the same index as in "packages".
+		 * For example: if the packages are {3, 4, 1, 19} then a group containing the second and last package will be {0, 4, 0, 19}.
+	     * Maybe it's overengineering but I wanted this program to work with inputs where there are multiple packages with the same size.
+		 */
+		void FindBestComboRecursive(int[] packages, int neededWeight, int groupsAmount, int[] firstGroup, ref BigInteger smallestQE, ref int smallest1, int index = 0)
 		{
 			if(CountPackages(firstGroup) > smallest1)
 				return;
 			
-			if(index >= packages.Length) //If gone through all packages
+			if(index == packages.Length)
 			{
-				if(GetGroupWeight(firstGroup, packages) != neededWeight)
+				if(GetGroupWeight(firstGroup) != neededWeight)
 					return;
 				
-				bool[][] groups = new bool[groupsAmount][];
+				int[][] groups = new int[groupsAmount][];
 				groups[0] = firstGroup;
 				for(int i = 1; i < groupsAmount; i++)
-					groups[i] = new bool[packages.Length];
+					groups[i] = new int[packages.Length];
 				if(!CanDistributeOtherGroups(packages, 0, groups))
 				{
 					Console.Write('|');
@@ -55,7 +58,7 @@ namespace AdventOfCode
 				}
 				
 				Console.Write('.');
-				long QE = CountQE(firstGroup, packages);
+				var QE = CountQE(firstGroup);
 				int count = CountPackages(firstGroup);
 				if(count < smallest1)
 				{
@@ -64,24 +67,24 @@ namespace AdventOfCode
 					return;
 				}
 				else if(count == smallest1)
-					if(QE < smallestQE)
+					if(QE < smallestQE || smallestQE == -1)
 						smallestQE = QE;
 				return;
 			}
 			
 			//Try adding the next package
-			FindBestComboRecursive(packages, neededWeight, groupsAmount, AddPackage(index, firstGroup), ref smallestQE, ref smallest1, index + 1);
+			FindBestComboRecursive(packages, neededWeight, groupsAmount, AddPackage(index, packages[index], firstGroup), ref smallestQE, ref smallest1, index + 1);
 			//Try not adding the next package
 			FindBestComboRecursive(packages, neededWeight, groupsAmount, firstGroup, ref smallestQE, ref smallest1, index + 1);
 		}
 		
-		bool CanDistributeOtherGroups(int[] packages, int index, params bool[][] groups)
+		bool CanDistributeOtherGroups(int[] packages, int index, params int[][] groups)
 		{
 			int[] weights = new int[groups.Length];
 			
 			for(int i = 0; i < weights.Length; i++)
 			{
-				weights[i] = GetGroupWeight(groups[i], packages);
+				weights[i] = GetGroupWeight(groups[i]);
 				if(weights[i] > weights[0])
 					return false;
 			}
@@ -94,28 +97,28 @@ namespace AdventOfCode
 				return true;
 			}
 			
-			if(groups[0][index]) //If current package is already in group 1
+			if(groups[0][index] != 0) //If current package is already in group 1
 				if(CanDistributeOtherGroups(packages, index + 1, CopyArray(groups))) //Iterate more and don't put anything to groups 2 or 3
 					return true;
 			
 			for(int i = 1; i < groups.Length; i++)
-				if(CanDistributeOtherGroups(packages, index + 1, AddPackage(i, index, groups)))
+				if(CanDistributeOtherGroups(packages, index + 1, AddPackage(i, index, packages[index], groups)))
 					return true;
 			return false;
 		}
 		
-		bool[] AddPackage(int packageNum, bool[] group)
+		int[] AddPackage(int index, int package, int[] group)
 		{
-			bool[] copy = new bool[group.Length];
+			int[] copy = new int[group.Length];
 			Array.Copy(group, copy, group.Length);
-			copy[packageNum] = true;
+			copy[index] = package;
 			return copy;
 		}
 		
-		bool[][] AddPackage(int groupNum, int packageNum, bool[][] groups)
+		int[][] AddPackage(int groupNum, int index, int package, int[][] groups)
 		{
-			bool[][] copy = CopyArray(groups);
-			copy[groupNum][packageNum] = true;
+			int[][] copy = CopyArray(groups);
+			copy[groupNum][index] = package;
 			return copy;
 		}
 		
@@ -131,53 +134,44 @@ namespace AdventOfCode
 			return copy;
 		}
 		
-		int GetGroupWeight(bool[] group, int[] packages)
+		int GetGroupWeight(int[] group)
 		{
 			int weight = 0;
-			for(int usedPackage = 0; usedPackage < group.Length; usedPackage++)
-				if(group[usedPackage])
-					weight += packages[usedPackage];
+			foreach(int package in group)
+				if(package != 0)
+					weight += package;
 			return weight;
 		}
 		
-		int CountPackages(bool[] group)
+		int CountPackages(int[] group)
 		{
 			int count = 0;
-			foreach(bool usedPackage in group)
-				if(usedPackage)
+			foreach(int package in group)
+				if(package != 0)
 					count++;
 			return count;
 		}
 		
-		long CountQE(bool[] group, int[] packages)
+		BigInteger CountQE(int[] group)
 		{
-			try
+			BigInteger quantumEntanglement = -1;
+			foreach(int package in group)
 			{
-				long quantumEntanglement = -1;
-				for(int usedPackage = 0; usedPackage < group.Length; usedPackage++)
+				if(package != 0)
 				{
-					if(group[usedPackage])
-					{
-						if(quantumEntanglement == -1)
-							quantumEntanglement = packages[usedPackage];
-						else
-							quantumEntanglement *= packages[usedPackage];
-					}
+					if(quantumEntanglement == -1)
+						quantumEntanglement = package;
+					else
+						quantumEntanglement *= package;
 				}
-				return quantumEntanglement;
 			}
-			catch(OverflowException)
-			{
-				return Int64.MaxValue;
-			}
+			return quantumEntanglement;
 		}
 		
-		void PrintGroup(bool[] group, int[] packages)
+		void PrintGroup(int[] group)
 		{
-			for(int usedPackage = 0; usedPackage < group.Length; usedPackage++)
-				if(group[usedPackage])
-					Console.Write("{0} ", packages[usedPackage]);
-			Console.WriteLine("| Weight: {0} QE: {1}", GetGroupWeight(group, packages), CountQE(group, packages));
+			Console.Write(string.Join(" ", group));
+			Console.WriteLine("| Weight: {0} QE: {1}", GetGroupWeight(group), CountQE(group));
 		}
 		
 	}

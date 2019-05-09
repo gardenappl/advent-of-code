@@ -19,6 +19,11 @@ namespace AdventOfCode
 			days[6] = new Day6();
 			days[7] = new Day7();
 			days[8] = new Day8();
+			days[9] = new Day9();
+			days[10] = new Day10();
+			days[11] = new Day11();
+			days[12] = new Day12();
+			days[13] = new Day13();
 			days[14] = new Day14();
 			days[15] = new Day15();
 			days[16] = new Day16();
@@ -30,6 +35,7 @@ namespace AdventOfCode
 			days[22] = new Day22();
 			days[23] = new Day23();
 			days[24] = new Day24();
+			days[25] = new Day25();
 			
 			for(int i = 1; i <= 25; i++) //A little thing that shows which days have solutions
 			{
@@ -59,7 +65,7 @@ namespace AdventOfCode
 					Console.WriteLine("There is no solution for that day's puzzle yet! Sorry!");
 			}
 			
-			Console.ForegroundColor = ConsoleColor.Green;
+			Console.ForegroundColor = ConsoleColor.Cyan;
 			bool success = true;
 			var watch = Stopwatch.StartNew();
 			try
@@ -76,7 +82,7 @@ namespace AdventOfCode
 			if(success)
 				Console.WriteLine("Solution took {0} milliseconds.", watch.ElapsedMilliseconds);
 			else
-				Console.WriteLine("Things crashed!");
+				Console.WriteLine("Things crashed after running for {0} milliseconds!", watch.ElapsedMilliseconds);
 			Console.WriteLine("Press any key to continue...");
 			Console.ReadKey();
 		}
