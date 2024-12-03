@@ -6,21 +6,18 @@
 
 #define MSG_SIZE 100
 
-int compare_ints(const void* a, const void* b) {
-	int arg1 = *(const int*)a;
-	int arg2 = *(const int*)b;
- 
-	if (arg1 < arg2) return -1;
-	if (arg1 > arg2) return 1;
-	return 0;
- 
-	// return (arg1 > arg2) - (arg1 < arg2); // possible shortcut
- 
-	// return arg1 - arg2; // erroneous shortcut: undefined behavior in case of
-	                       // integer overflow, such as with INT_MIN here
+#define AOC_DEFINE_COMPARE(type)  int aoc_compare_##type(const void* a, const void* b) { \
+	type arg1 = *(const type*)a; \
+	type arg2 = *(const type*)b; \
+ \
+	if (arg1 < arg2) return -1; \
+	if (arg1 > arg2) return 1; \
+	return 0; \
 }
 
-size_t count_lines(FILE* file) {
+AOC_DEFINE_COMPARE(int32_t)
+
+size_t aoc_count_lines(FILE* file) {
 	fseek(file, 0, SEEK_SET);
 	if (ferror(file)) return -1;
 
@@ -36,7 +33,7 @@ size_t count_lines(FILE* file) {
 }
 
 bool get_lists(FILE* input, size_t* _lines, int32_t** restrict _arr1, int32_t** restrict _arr2) {
-	size_t lines = count_lines(input);
+	size_t lines = aoc_count_lines(input);
 	*_lines = lines;
 	if (lines < 0) return true;
 
@@ -66,8 +63,8 @@ char* solve1(FILE* input) {
 	bool fail = get_lists(input, &lines, &arr1, &arr2);
 	if (fail) return NULL;
 
-	qsort(arr1, lines, sizeof(int32_t), compare_ints);
-	qsort(arr2, lines, sizeof(int32_t), compare_ints);
+	qsort(arr1, lines, sizeof(int32_t), aoc_compare_int32_t);
+	qsort(arr2, lines, sizeof(int32_t), aoc_compare_int32_t);
 
 	int32_t diff_sum = 0;
 	for (size_t i = 0; i < lines; i++)
