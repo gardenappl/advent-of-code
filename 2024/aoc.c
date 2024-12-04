@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(const void* a, const void* b) { \
@@ -30,6 +31,28 @@ size_t aoc_count_lines(FILE * file) {
 	return line_count;
 }
 
+void * aoc_read_file(FILE * file) {
+	fseek(file, 0, SEEK_END);
+	if (ferror(file)) return NULL;
+
+	long size = ftell(file);
+	if (ferror(file)) return NULL;
+
+	fseek(file, 0, SEEK_SET);
+	if (ferror(file)) return NULL;
+
+	if (size > SIZE_MAX - 1)
+		return NULL;
+	char * buf = malloc((size_t)(size + 1));
+	size_t read = fread(buf, (size_t)size, 1, file);
+	if (read != 1) {
+		free(buf);
+		return NULL;
+	}
+	buf[((size_t)size) - 1] = 0;
+	return buf;
+}
+
 int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
 	if (argc < 2) {
 		char * prog_name = "PROGRAM_NAME";
@@ -38,7 +61,7 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 		fprintf(stderr, "Usage: %s INPUT_FILE\n", prog_name);
 		return AOC_EXIT_USAGE;
 	}
-	FILE* file = fopen(argv[1], "r");
+	FILE* file = fopen(argv[1], "rb");
 	if (!file) {
 		perror("Could not open file");
 		return AOC_EXIT_NO_INPUT;
