@@ -63,16 +63,18 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 		return AOC_EXIT_IO_ERROR;
 	}
 
-	result = solve2(file);
-	if (result) {
-		fprintf(stderr, "Part 2 success!\n");
-		puts(result);
-	} else if (ferror(file)) {
-		perror("File error");
-		return AOC_EXIT_IO_ERROR;
-	} else {
-		fprintf(stderr, "Part 2 fail!\n");
-		fail = true;
+	if (solve2) {
+		result = solve2(file);
+		if (result) {
+			fprintf(stderr, "Part 2 success!\n");
+			puts(result);
+		} else if (ferror(file)) {
+			perror("File error");
+			return AOC_EXIT_IO_ERROR;
+		} else {
+			fprintf(stderr, "Part 2 fail!\n");
+			fail = true;
+		}
 	}
 
 	fclose(file);
