@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(const void* a, const void* b) { \
+#define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(void const * a, void const * b) { \
 	type arg1 = *(const type*)a; \
 	type arg2 = *(const type*)b; \
  \
@@ -28,6 +28,13 @@ size_t aoc_count_lines(FILE * file) {
 
 	fseek(file, 0, SEEK_SET);
 	return line_count;
+}
+
+size_t aoc_count_chars(char const * s, char c) {
+	size_t count = 0;
+	for (size_t i = 0; s[i]; i++)
+		count += s[i] == c;
+	return count;
 }
 
 int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {

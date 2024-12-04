@@ -14,7 +14,7 @@
 
 #include "aoc.h"
 
-bool check_is_safe(char * report, bool try_tolerate, int32_t prev_num, int32_t prev_diff) {
+bool check_is_safe(char * report, size_t ignore_num, int32_t prev_num, int32_t prev_diff) {
 	#ifdef DEBUG
 	fprintf(stderr, "Checking with prev_num %" PRId32 " and prev_diff %" PRId32 ": %s", prev_num, prev_diff, report);
 	#endif
@@ -24,7 +24,7 @@ bool check_is_safe(char * report, bool try_tolerate, int32_t prev_num, int32_t p
 	int32_t num; 
 	int32_t prev_num2 = 0;
 	int32_t prev_diff2 = 0;
-	while (true) {
+	for (size_t i = 0; true; i++) {
 		long res_l = strtol(bytes, &next_bytes, 10);
 		num = (int32_t)res_l;
 		if (errno == ERANGE || num != res_l) {
@@ -34,29 +34,32 @@ bool check_is_safe(char * report, bool try_tolerate, int32_t prev_num, int32_t p
 		if (num == 0)
 			break;
 
-		if (prev_num != 0) {
-			int32_t diff = num - prev_num;
-			if (diff == 0 || abs(diff) > 3 || (prev_diff != 0 && (diff > 0) != (prev_diff > 0))) {
-				if (!try_tolerate)
+		if (i != ignore_num) {
+			if (prev_num != 0) {
+				int32_t diff = num - prev_num;
+				if (diff == 0 || abs(diff) > 3 || (prev_diff != 0 && (diff > 0) != (prev_diff > 0))) {
+					// if (!try_tolerate)
+					// 	return false;
+					// // try ignoring current number
+					// #ifdef DEBUG
+					// fprintf(stderr, "Skipping current number: %" PRId32 "\n", num);
+					// #endif
+					// bool safe = check_is_safe(next_bytes, false, prev_num, prev_diff);
+					// if (safe)
+					// 	return true;
+					// // try ignoring previous number
+					// #ifdef DEBUG
+					// fprintf(stderr, "Skipping previous number: %" PRId32 "\n", prev_num);
+					// #endif
+					// return check_is_safe(bytes, false, prev_num2, prev_diff2);
 					return false;
-				// try ignoring current number
-				#ifdef DEBUG
-				fprintf(stderr, "Skipping current number: %" PRId32 "\n", num);
-				#endif
-				bool safe = check_is_safe(next_bytes, false, prev_num, prev_diff);
-				if (safe)
-					return true;
-				// try ignoring previous number
-				#ifdef DEBUG
-				fprintf(stderr, "Skipping previous number: %" PRId32 "\n", prev_num);
-				#endif
-				return check_is_safe(bytes, false, prev_num2, prev_diff2);
+				}
+				prev_diff2 = prev_diff;
+				prev_diff = diff;
 			}
-			prev_diff2 = prev_diff;
-			prev_diff = diff;
+			prev_num2 = prev_num;
+			prev_num = num;
 		}
-		prev_num2 = prev_num;
-		prev_num = num;
 		bytes = next_bytes;
 	}
 	return true;
@@ -76,9 +79,16 @@ char * solve(FILE * input, bool try_tolerate) {
 		#ifdef DEBUG
 		fputs(line, stderr);
 		#endif
-		bool safe = check_is_safe(line, try_tolerate, 0, 0);
+		size_t numbers = aoc_count_chars(line, ' ') + 1;
+		bool safe = false;
+		for (size_t i = 0; i < numbers; i++) {
+			safe = check_is_safe(line, i, 0, 0);
+			if (safe)
+				break;
+		}
 		#ifdef DEBUG
 		fprintf(stderr, "Line is %s\n", safe ? "safe." : "unsafe!");
+		fprintf(stderr, "...has %zu numbers.", numbers);
 		#endif
 
 		if (safe)
