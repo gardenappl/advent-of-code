@@ -4,8 +4,9 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#define DEBUG
+// #define DEBUG
 
+#include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <errno.h>
@@ -50,7 +51,19 @@ bool check_is_safe(char * report, bool try_tolerate, int32_t prev_num, int32_t p
 				#ifdef DEBUG
 				fprintf(stderr, "Skipping previous number: %" PRId32 "\n", prev_num);
 				#endif
-				return check_is_safe(bytes, false, prev_num2, prev_diff2);
+				safe = check_is_safe(bytes, false, prev_num2, prev_diff2);
+				if (safe)
+					return true;
+				// try ignoring 1st number
+				#ifdef DEBUG
+				fprintf(stderr, "Skipping first number\n");
+				#endif
+				safe = check_is_safe(strchr(report, ' '), false, 0, 0);
+				#ifdef DEBUG
+				if (safe)
+					fputs("Safe after skipping first number!\n", stderr);
+				#endif
+				return safe;
 			}
 			prev_diff2 = prev_diff;
 			prev_diff = diff;
@@ -68,11 +81,13 @@ char * solve(FILE * input, bool try_tolerate) {
 
 	char * line = NULL;
 	size_t n;
+	size_t line_num = 0;
 	while (getline(&line, &n, input) >= 0) {
 		if (ferror(input)) return NULL;
 		if (feof(input))
 			break;
 
+		line_num++;
 		#ifdef DEBUG
 		fputs(line, stderr);
 		#endif
@@ -81,8 +96,12 @@ char * solve(FILE * input, bool try_tolerate) {
 		fprintf(stderr, "Line is %s\n", safe ? "safe." : "unsafe!");
 		#endif
 
-		if (safe)
+		if (safe) {
+			if (try_tolerate)
+				printf("%zu\n", line_num);
 			safe_reports++;
+		} else {
+		}
 		reports++;
 	}
 	free(line);
