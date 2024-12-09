@@ -62,6 +62,86 @@ void * aoc_read_file(FILE * file) {
 	return buf;
 }
 
+size_t aoc_get_until_newline(char ** restrict buf, size_t * restrict buf_size, FILE * restrict file) {
+	if (*buf_size == 0 || !(*buf)) {
+		*buf_size = 1;
+		*buf = malloc(*buf_size);
+	}
+	size_t i = 0;
+	int c;
+	while ((c = getc(file)) != EOF) {
+		if (c == '\n')
+			break;
+		if (i >= *buf_size) {
+			*buf_size *= 2;
+			// fprintf(stderr, "string realloc: %p %zu\n", *buf, *buf_size);
+			*buf = realloc(*buf, *buf_size);
+			// fprintf(stderr, "string after realloc: %p %zu\n", *buf, *buf_size);
+		}
+		(*buf)[i] = c;
+		i++;
+	}
+	if (ferror(file)) {
+		free(buf);
+		return -1;
+	}
+	(*buf)[i] = 0;
+	return i;
+}
+
+
+// String helpers
+size_t aoc_count_chars(char const * s, char c) {
+	size_t count = 0;
+	for (; *s; s++) {
+		if (*s == c)
+			count++;
+	}
+	return count;
+}
+
+size_t aoc_tokenize(char * restrict s, char delimiter, char *** restrict token_starts, size_t * restrict tokens_buf_size) {
+	size_t fields_n = aoc_count_chars(s, delimiter) + 1;
+	char delim_string[2] = { delimiter, 0 };
+	// fprintf(stderr, "delim: '%s', fields: %zu\n", delim_string, fields_n);
+
+	if (*token_starts == NULL || *tokens_buf_size == 0) {
+		*tokens_buf_size = fields_n;
+		*token_starts = malloc(sizeof(char*) * fields_n);
+	} else if (*tokens_buf_size < fields_n) {
+		*tokens_buf_size = fields_n;
+		*token_starts = realloc(*token_starts, sizeof(char*) * fields_n);
+	}
+
+	size_t tokens_count = 0;
+	char * next_token = strtok(s, delim_string);
+	while (next_token) {
+		(*token_starts)[tokens_count] = next_token;
+		tokens_count++;
+		next_token = strtok(NULL, delim_string);
+	}
+	return tokens_count;
+}
+
+void aoc_numbers_line_parse_new(char * s, aoc_numbers_line * num_line, char delimiter) {
+	num_line->buf = s;
+	size_t old_numbers_buf_size = num_line->tokens_buf_size;
+	size_t token_count = aoc_tokenize(num_line->buf, delimiter, &num_line->token_starts, &num_line->tokens_buf_size);
+
+	if (num_line->numbers == NULL || (old_numbers_buf_size != num_line->tokens_buf_size)) {
+		num_line->numbers = realloc(num_line->numbers, sizeof(int32_t) * num_line->tokens_buf_size);
+	}
+	num_line->numbers_count = token_count;
+	for (size_t i = 0; i < token_count; i++) {
+		num_line->numbers[i] = atol(num_line->token_starts[i]);
+	}
+}
+
+void aoc_numbers_line_free(aoc_numbers_line num_line) {
+	free(num_line.token_starts);
+	free(num_line.numbers);
+}
+
 bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix) {
 	char * next_line = strchr(s, '\n');
 	if (!next_line) return EXIT_FAILURE;

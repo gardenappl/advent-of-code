@@ -16,6 +16,35 @@
 
 AOC_COMPARE_DECLARE_FOR(int32_t)
 
+
+// File helpers
+
+size_t aoc_count_lines(FILE * file);
+void * aoc_read_file(FILE * file);
+size_t aoc_get_until_newline(char ** buf, size_t * buf_size, FILE * file);
+
+
+// String helpers
+
+size_t aoc_count_chars(char const * s, char c);
+size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * tokens_buf_size);
+
+typedef struct {
+	char * buf;
+
+	char ** token_starts;
+	size_t tokens_buf_size;
+
+	int32_t * numbers;
+	size_t numbers_count;
+} aoc_numbers_line;
+
+void aoc_numbers_line_parse_new(char * s, aoc_numbers_line * num_line, char delimiter);
+void aoc_numbers_line_free(aoc_numbers_line num_line);
+
+
+// Matrix helpers
+
 typedef struct {
 	char const * s;
 	size_t width;
@@ -27,11 +56,12 @@ extern size_t aoc_sq8_y_diffs[8];
 extern size_t aoc_cross4_x_diffs[4];
 extern size_t aoc_cross4_y_diffs[4];
 
-size_t aoc_count_lines(FILE * file);
-void * aoc_read_file(FILE * file);
 bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix);
 char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y);
 bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y);
+
+
+// Main boilerplate
 
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix));
 int aoc_main(int argc, char * argv[], 
