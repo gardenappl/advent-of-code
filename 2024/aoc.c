@@ -1,20 +1,29 @@
 #include "aoc.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
 
-#define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(const void* a, const void* b) { \
-	type arg1 = *(const type*)a; \
-	type arg2 = *(const type*)b; \
+#define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(void const * a, void const * b) { \
+	type arg1 = *(type const *)a; \
+	type arg2 = *(type const *)b; \
  \
 	if (arg1 < arg2) return -1; \
 	if (arg1 > arg2) return 1; \
 	return 0; \
 }
 
+
 AOC_COMPARE_DEFINE_FOR(int32_t)
+
+size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
+size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
+size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
+size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
 
 size_t aoc_count_lines(FILE * file) {
 	fseek(file, 0, SEEK_SET);
@@ -52,6 +61,36 @@ void * aoc_read_file(FILE * file) {
 	buf[((size_t)size) - 1] = 0;
 	return buf;
 }
+
+bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix) {
+	char * next_line = strchr(s, '\n');
+	if (!next_line) return EXIT_FAILURE;
+	
+	aoc_s_matrix m = { .s = s, .width = next_line - s };
+	do {
+		if ((next_line - s) != m.width)
+			return EXIT_FAILURE;
+		m.height++;
+		s = next_line + 1;
+	} while ((next_line = strchr(s, '\n')));
+
+	if (strlen(s) != m.width)
+		return EXIT_FAILURE;
+	m.height++;
+	*s_matrix = m;
+	return EXIT_SUCCESS;
+}
+
+char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y) {
+	return s_matrix.s[((s_matrix.width + 1) * y) + x];
+}
+
+bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y) {
+	return x >= 0 && y >= 0 && x < s_matrix.width && y < s_matrix.height;
+}
+
+
+// Main function boilerplate
 
 int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
 	if (argc < 2) {
@@ -102,4 +141,23 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 
 	fclose(file);
 	return fail ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+}
+
+
+char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix)) {
+	char const * s = aoc_read_file(input);
+	if (!s) return NULL;
+
+	aoc_s_matrix s_matrix;
+	bool err_ = aoc_s_matrix_init(s, &s_matrix);
+	if (err_) {
+		free((void *)s);
+		return NULL;
+	}
+	int64_t result = solve_for_matrix(s_matrix);
+	free((void *)s);
+
+	char * buf = malloc(AOC_MSG_SIZE);
+	snprintf(buf, AOC_MSG_SIZE, "%" PRId64, result);
+	return buf;
 }
