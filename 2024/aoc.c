@@ -8,6 +8,11 @@
 #include <string.h>
 #include <inttypes.h>
 
+
+//
+// Logic helpers
+//
+
 #define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(void const * a, void const * b) { \
 	type arg1 = *(type const *)a; \
 	type arg2 = *(type const *)b; \
@@ -20,10 +25,10 @@
 
 AOC_COMPARE_DEFINE_FOR(int32_t)
 
-size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
-size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
-size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
-size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
+
+//
+// File helpers
+//
 
 size_t aoc_count_lines(FILE * file) {
 	fseek(file, 0, SEEK_SET);
@@ -90,7 +95,10 @@ size_t aoc_get_until_newline(char ** restrict buf, size_t * restrict buf_size, F
 }
 
 
+//
 // String helpers
+//
+
 size_t aoc_count_chars(char const * s, char c) {
 	size_t count = 0;
 	for (; *s; s++) {
@@ -142,6 +150,17 @@ void aoc_numbers_line_free(aoc_numbers_line num_line) {
 	free(num_line.numbers);
 }
 
+
+//
+// Matrix helpers
+//
+
+size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
+size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
+size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
+size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
+
+
 bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix) {
 	char * next_line = strchr(s, '\n');
 	if (!next_line) return EXIT_FAILURE;
@@ -170,7 +189,9 @@ bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y) {
 }
 
 
+//
 // Main function boilerplate
+//
 
 int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
 	if (argc < 2) {

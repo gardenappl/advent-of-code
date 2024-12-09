@@ -12,6 +12,8 @@
 
 #define AOC_MSG_SIZE 100
 
+// Logic helpers
+
 #define AOC_COMPARE_DECLARE_FOR(type)  int aoc_compare_##type(void const * a, void const * b);
 
 AOC_COMPARE_DECLARE_FOR(int32_t)
@@ -61,11 +63,11 @@ char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y);
 bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y);
 
 
-// Main boilerplate
+// Main function boilerplate
 
-char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix));
 int aoc_main(int argc, char * argv[], 
 		char * (*solve1)(FILE * const), 
 		char * (*solve2)(FILE * const));
+char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix));
 
 #endif /* end of include guard: AOC_H */

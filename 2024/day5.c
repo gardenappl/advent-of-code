@@ -53,17 +53,9 @@ static char * solve1(FILE * input) {
 		}
 		rules_for_page_after[rule->page_after] = rule;
 	}
-
-	// rule_t const * rule13 = rules_for_page_after[13];
-	// while (rule13) {
-	// 	fprintf(stderr, "Rule 13 #%zu: %" PRId32 " -> %" PRId32 "\n", rule13->num, rule13->page_before, rule13->page_after);
-	// 	rule13 = rule13->next_rule_for_page_after;
-	// }
 	
 	fseek(input, successful_rule_scan, SEEK_SET);
 
-	// char ** token_starts = NULL;
-	// size_t tokens_buf_size;
 	aoc_numbers_line num_line = { 0 };
 	int64_t middle_page_sum = 0;
 	bool * page_banned = calloc(max_banned_page + 1, sizeof(bool));
@@ -72,17 +64,6 @@ static char * solve1(FILE * input) {
 	size_t line_buf_size;
 	size_t line_length;
 	while ((line_length = aoc_get_until_newline(&line, &line_buf_size, input))) {
-		// size_t commas = aoc_count_chars(line, ',');
-		// fprintf(stderr, "Line: \"%s\", line length: %zu, buffer size: %zu, fields: %zu\n", 
-				// line, line_length, line_buf_size, commas + 1);
-
-		// size_t fields = aoc_tokenize(line, ',', &token_starts, &tokens_buf_size);
-		// fprintf(stderr, "Fields: %zu\n", fields);
-		// for (size_t i = 0; i < fields; i++) {
-		// 	fprintf(stderr, "Field: \"%s\"\n", token_starts[i]);
-		// }
-
-		// fprintf(stderr, "Line: '%s'\n", line);
 		aoc_numbers_line_parse_new(line, &num_line, ',');
 
 		// fprintf(stderr, "Numbers: %zu, token buffer size: %zu\n", num_line.numbers_count, num_line.tokens_buf_size);
@@ -92,7 +73,7 @@ static char * solve1(FILE * input) {
 
 		for (size_t i = 0; i < num_line.numbers_count; i++) {
 			int32_t page = num_line.numbers[i];
-			// fprintf(stderr, "Page: %" PRId32 "\n", page);
+			fprintf(stderr, "%" PRId32 ",", page);
 			if (page > max_banned_page)
 				continue;
 
@@ -109,6 +90,7 @@ static char * solve1(FILE * input) {
 				rule = rule->next_rule_for_page_after;
 			}
 		}
+		fprintf(stderr, "\n");
 		if (none_banned) {
 			int32_t middle_page = num_line.numbers[num_line.numbers_count / 2];
 			middle_page_sum += middle_page;
@@ -118,7 +100,6 @@ static char * solve1(FILE * input) {
 	free(rules);
 	free(rules_for_page_after);
 	free(line);
-	// free(token_starts);
 	aoc_numbers_line_free(num_line);
 	free(page_banned);
 	
