@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 
 
 //
@@ -37,6 +38,27 @@ AOC_COMPARE_DEFINE_FOR(int32_t)
 }
 
 AOC_MOVE_VALUE_DEFINE_FOR(int32_t)
+
+
+// // https://stackoverflow.com/a/1226129
+// enum { BITS_PER_WORD = sizeof(uint32_t) * CHAR_BIT };
+// #define WORD_OFFSET(b) ((b) / BITS_PER_WORD)
+// #define BIT_OFFSET(b)  ((b) % BITS_PER_WORD)
+//
+// void aoc_bit_set(uint32_t *words, int n) { 
+// 	words[WORD_OFFSET(n)] |= (1 << BIT_OFFSET(n));
+// }
+//
+// void aoc_bit_clear(uint32_t *words, int n) {
+// 	words[WORD_OFFSET(n)] &= ~(1 << BIT_OFFSET(n)); 
+// }
+//
+// bool aoc_bit_get(uint32_t *words, int n) {
+// 	uint32_t bit = words[WORD_OFFSET(n)] & (1 << BIT_OFFSET(n));
+// 	return bit != 0; 
+// }
+
+extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
 
 
 //
@@ -196,11 +218,11 @@ bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix) {
 }
 
 char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y) {
-	return s_matrix.s[((s_matrix.width + 1) * y) + x];
+	return s_matrix.s[aoc_index_2d(s_matrix.width + 1, x, y)];
 }
 
 void aoc_s_matrix_set(aoc_s_matrix s_matrix, size_t x, size_t y, char c) {
-	s_matrix.s[((s_matrix.width + 1) * y) + x] = c;
+	s_matrix.s[aoc_index_2d(s_matrix.width + 1, x, y)] = c;
 }
 
 bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y) {

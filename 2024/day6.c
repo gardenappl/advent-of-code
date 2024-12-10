@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 #include "aoc.h"
 
@@ -78,6 +79,7 @@ void trace_back(aoc_s_matrix matrix, size_t guard_x, size_t guard_y, size_t guar
 }
 
 int64_t solve_for_matrix2(aoc_s_matrix matrix) {
+	bool * loop_blocks = calloc(matrix.width * matrix.height, sizeof(bool));
 	size_t guard_x;
 	size_t guard_y;
 	size_t guard_dir = 0;
@@ -101,17 +103,17 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 		// Set "trail" of cells behind the guard
 		size_t traced = 0;
 		trace_back(matrix, guard_x, guard_y, guard_dir, &traced);
-		if (traced > 1) {
-			fprintf(stderr, "\n%s\nTraced %zu cells!\n", matrix.s, traced);
-			getc(stdin);
-		}
+		// if (traced > 1) {
+			// fprintf(stderr, "\n%s\nTraced %zu cells!\n", matrix.s, traced);
+			// getc(stdin);
+		// }
 
 
 		char next_cell = aoc_s_matrix_get(matrix, next_guard_x, next_guard_y);
 		if (next_cell == '#') {
 			guard_dir = (guard_dir + 1) % 4;
-			fprintf(stderr, "\n%s\nTurning!\n", matrix.s);
-			getc(stdin);
+			// fprintf(stderr, "\n%s\nTurning!\n", matrix.s);
+			// getc(stdin);
 		} else {
 			char cell = aoc_s_matrix_get(matrix, guard_x, guard_y);
 
@@ -126,11 +128,16 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 			size_t guard_dir_turn = (guard_dir + 1) % 4;
 			char cell_dirs = cell - '.';
 			if (cell_dirs & dir_codes[guard_dir_turn]) {
-				aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
-				fprintf(stderr, "\n%s\nFOUND LOOP!\n", matrix.s);
-				aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
-				getc(stdin);
-				found_loops++;
+				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
+				// fprintf(stderr, "\n%s\nFOUND LOOP!\n", matrix.s);
+				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
+				if (loop_blocks[aoc_index_2d(matrix.width, next_guard_x, next_guard_y)]) {
+					fprintf(stderr, "Already found?!\n");
+				} else {
+					loop_blocks[aoc_index_2d(matrix.width, next_guard_x, next_guard_y)] = true;
+					found_loops++;
+				}
+				// getc(stdin);
 			}
 		}
 
@@ -138,6 +145,7 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 		next_guard_x = guard_x + aoc_dir4_x_diffs[guard_dir];
 		next_guard_y = guard_y + aoc_dir4_y_diffs[guard_dir];
 	}
+	free(loop_blocks);
 	fprintf(stderr, "\n%s\nEND\n", matrix.s);
 	return found_loops;
 }

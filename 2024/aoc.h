@@ -22,6 +22,10 @@ AOC_COMPARE_DECLARE_FOR(int32_t)
 
 AOC_MOVE_VALUE_DECLARE_FOR(int32_t)
 
+inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
+	return width * y + x;
+}
+
 
 // File helpers
 
