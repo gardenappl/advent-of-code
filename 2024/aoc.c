@@ -172,9 +172,11 @@ size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
 size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
 size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
 size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
+size_t aoc_dir4_x_diffs[] = {  0,  1,  0, -1 };
+size_t aoc_dir4_y_diffs[] = { -1,  0,  1,  0 };
 
 
-bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix) {
+bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix) {
 	char * next_line = strchr(s, '\n');
 	if (!next_line) return EXIT_FAILURE;
 	
@@ -197,8 +199,12 @@ char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y) {
 	return s_matrix.s[((s_matrix.width + 1) * y) + x];
 }
 
+void aoc_s_matrix_set(aoc_s_matrix s_matrix, size_t x, size_t y, char c) {
+	s_matrix.s[((s_matrix.width + 1) * y) + x] = c;
+}
+
 bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y) {
-	return x >= 0 && y >= 0 && x < s_matrix.width && y < s_matrix.height;
+	return x < s_matrix.width && y < s_matrix.height;
 }
 
 
@@ -259,7 +265,7 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 
 
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix)) {
-	char const * s = aoc_read_file(input);
+	char * s = aoc_read_file(input);
 	if (!s) return NULL;
 
 	aoc_s_matrix s_matrix;

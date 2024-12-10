@@ -52,7 +52,7 @@ void aoc_numbers_line_free(aoc_numbers_line num_line);
 // Matrix helpers
 
 typedef struct {
-	char const * s;
+	char * s;
 	size_t width;
 	size_t height;
 } aoc_s_matrix;
@@ -61,9 +61,12 @@ extern size_t aoc_sq8_x_diffs[8];
 extern size_t aoc_sq8_y_diffs[8];
 extern size_t aoc_cross4_x_diffs[4];
 extern size_t aoc_cross4_y_diffs[4];
+extern size_t aoc_dir4_x_diffs[4];
+extern size_t aoc_dir4_y_diffs[4];
 
-bool aoc_s_matrix_init(char const * s, aoc_s_matrix * s_matrix);
+bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix);
 char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y);
+void aoc_s_matrix_set(aoc_s_matrix s_matrix, size_t x, size_t y, char c);
 bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y);
 
 
