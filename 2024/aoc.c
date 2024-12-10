@@ -25,6 +25,19 @@
 
 AOC_COMPARE_DEFINE_FOR(int32_t)
 
+#define AOC_MOVE_VALUE_DEFINE_FOR(type)  void aoc_move_value_##type(type * array, size_t index_from, size_t index_to) { \
+	assert(index_to < index_from); \
+	type prev_val = array[index_to]; \
+	array[index_to] = array[index_from]; \
+	for (size_t i = index_to; i < index_from; i++) { \
+		type val = array[i + 1]; \
+		array[i + 1] = prev_val; \
+		prev_val = val; \
+	} \
+}
+
+AOC_MOVE_VALUE_DEFINE_FOR(int32_t)
+
 
 //
 // File helpers

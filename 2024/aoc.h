@@ -18,6 +18,10 @@
 
 AOC_COMPARE_DECLARE_FOR(int32_t)
 
+#define AOC_MOVE_VALUE_DECLARE_FOR(type)  void aoc_move_value_##type(type * array, size_t index_from, size_t index_to);
+
+AOC_MOVE_VALUE_DECLARE_FOR(int32_t)
+
 
 // File helpers
 
