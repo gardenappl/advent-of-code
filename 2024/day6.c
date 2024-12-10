@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "aoc.h"
 
@@ -95,7 +96,7 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 
 	size_t found_loops = 0;
 	aoc_s_matrix_set(matrix, guard_x, guard_y, '.');
-	_Static_assert((int)'.' + 15 < 256, "Charset has 15 characters after .");
+	static_assert((int)'.' + 15 < 256, "Character set has 15 characters after .");
 
 	size_t next_guard_x = guard_x;
 	size_t next_guard_y = guard_y - 1;
@@ -103,17 +104,17 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 		// Set "trail" of cells behind the guard
 		size_t traced = 0;
 		trace_back(matrix, guard_x, guard_y, guard_dir, &traced);
-		// if (traced > 1) {
-			// fprintf(stderr, "\n%s\nTraced %zu cells!\n", matrix.s, traced);
-			// getc(stdin);
-		// }
+		if (traced > 1) {
+			fprintf(stderr, "\n%s\nTrailed %zu cells!\n", matrix.s, traced);
+			getc(stdin);
+		}
 
 
 		char next_cell = aoc_s_matrix_get(matrix, next_guard_x, next_guard_y);
 		if (next_cell == '#') {
 			guard_dir = (guard_dir + 1) % 4;
-			// fprintf(stderr, "\n%s\nTurning!\n", matrix.s);
-			// getc(stdin);
+			fprintf(stderr, "\n%s\nTurning!\n", matrix.s);
+			getc(stdin);
 		} else {
 			char cell = aoc_s_matrix_get(matrix, guard_x, guard_y);
 
@@ -128,16 +129,16 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 			size_t guard_dir_turn = (guard_dir + 1) % 4;
 			char cell_dirs = cell - '.';
 			if (cell_dirs & dir_codes[guard_dir_turn]) {
-				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
-				// fprintf(stderr, "\n%s\nFOUND LOOP!\n", matrix.s);
-				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
+				aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
+				fprintf(stderr, "\n%s\nFOUND LOOP!\n", matrix.s);
+				aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
 				if (loop_blocks[aoc_index_2d(matrix.width, next_guard_x, next_guard_y)]) {
 					fprintf(stderr, "Already found?!\n");
 				} else {
 					loop_blocks[aoc_index_2d(matrix.width, next_guard_x, next_guard_y)] = true;
 					found_loops++;
 				}
-				// getc(stdin);
+				getc(stdin);
 			}
 		}
 
