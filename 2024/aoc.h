@@ -11,9 +11,48 @@
 #define AOC_EXIT_SOFTWARE_FAIL 70
 #define AOC_EXIT_IO_ERROR 74
 
+// Deprecated since day 7
 #define AOC_MSG_SIZE 100
 
-// Logic helpers
+
+
+/*
+ * Error handling
+ */
+
+typedef struct aoc_err aoc_err_t;
+
+/**
+ * Return true and initialize error struct, if errno is non-zero
+ * @param[out]	err
+ * @param	err_msg Error message string, which won't need to be free()d
+ */
+bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg);
+
+/**
+ * Return true and initialize error struct, if errno is non-zero
+ * @param[out]	err
+ * @param	err_msg_buf  Error message string, which WILL be free()d
+ */
+bool aoc_err_if_errno_msg_buf(aoc_err_t * err, char * err_msg_buf);
+
+/**
+ * @param[out]	err
+ * @param	err_msg  Error message string, which won't need to be free()d
+ */
+void aoc_err(aoc_err_t * err, char const * err_msg);
+
+/**
+ * @param[out]	err
+ * @param	err_msg_buf  Error message string, which WILL be free()d
+ */
+void aoc_err_msg_buf(aoc_err_t * err, char * err_msg_buf);
+
+
+
+/*
+ * Logic helpers
+ */
 
 #define AOC_COMPARE_DECLARE_FOR(type)  int aoc_compare_##type(void const * a, void const * b);
 
@@ -28,14 +67,20 @@ inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
 }
 
 
-// File helpers
+
+/*
+ * File helpers
+ */
 
 size_t aoc_count_lines(FILE * file);
 void * aoc_read_file(FILE * file);
 size_t aoc_get_until_newline(char ** buf, size_t * buf_size, FILE * file);
 
 
-// String helpers
+
+/*
+ * String helpers
+ */
 
 size_t aoc_count_chars(char const * s, char c);
 size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * tokens_buf_size);
@@ -54,7 +99,10 @@ void aoc_numbers_line_parse_new(char * s, aoc_numbers_line * num_line, char deli
 void aoc_numbers_line_free(aoc_numbers_line num_line);
 
 
-// Matrix helpers
+
+/*
+ * Matrix helpers
+ */
 
 typedef struct {
 	char * s;
@@ -79,11 +127,22 @@ inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
 }
 
 
-// Main function boilerplate
+/*
+ * Main function boilerplate
+ */
 
+/**
+ * \deprecated Since day 7
+ */
 int aoc_main(int argc, char * argv[], 
-		char * (*solve1)(FILE * const), 
-		char * (*solve2)(FILE * const));
+		char * (*solve1)(FILE *), 
+		char * (*solve2)(FILE *));
+/**
+ * \deprecated Since day 7
+ */
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
+
+typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, int32_t part, aoc_err_t * err);
+int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
 
 #endif /* end of include guard: AOC_H */

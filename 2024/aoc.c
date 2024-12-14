@@ -1,6 +1,7 @@
 #include "aoc.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -8,11 +9,78 @@
 #include <string.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <threads.h>
+
+/*
+ * Error handling
+ */
+
+struct aoc_err {
+	bool is_error;
+	bool check_errno;
+	bool error_msg_const;
+	char * error_msg;
+};
+
+static void free_err_msg(aoc_err_t err) {
+	if (err.error_msg && err.error_msg_const)
+		free(err.error_msg);
+}
+
+bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg) {
+	if (errno) {
+		aoc_err(err, err_msg);
+		err->check_errno = true;
+		return true;
+	}
+	return false;
+}
+
+bool aoc_err_if_errno_msg_buf(aoc_err_t * err, char * err_msg_buf) {
+	if (errno) {
+		aoc_err_msg_buf(err, err_msg_buf);
+		err->check_errno = true;
+		return true;
+	}
+	return false;
+}
+
+void aoc_err(aoc_err_t * err, char const * error_msg) {
+	free_err_msg(*err);
+	aoc_err_t err_ = {
+		.is_error = true,
+		.error_msg = (char *)error_msg,
+		.error_msg_const = true
+	};
+	*err = err_;
+}
+
+void aoc_err_msg_buf(aoc_err_t * err, char * error_msg_buf) {
+	free_err_msg(*err);
+	aoc_err_t err_ = {
+		.is_error = true,
+		.error_msg = error_msg_buf
+	};
+	*err = err_;
+}
 
 
-//
-// Logic helpers
-//
+static bool print_err(aoc_err_t err) {
+	if (err.is_error)
+		return false;
+	if (err.check_errno) {
+		perror(err.error_msg);
+	} else {
+		fputs(err.error_msg, stderr);
+	}
+	return true;
+}
+
+
+
+/**
+ * Logic helpers
+ */
 
 #define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(void const * a, void const * b) { \
 	type arg1 = *(type const *)a; \
@@ -61,9 +129,9 @@ AOC_MOVE_VALUE_DEFINE_FOR(int32_t)
 extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
 
 
-//
-// File helpers
-//
+/*
+ * File helpers
+ */
 
 size_t aoc_count_lines(FILE * file) {
 	fseek(file, 0, SEEK_SET);
@@ -130,9 +198,9 @@ size_t aoc_get_until_newline(char ** restrict buf, size_t * restrict buf_size, F
 }
 
 
-//
-// String helpers
-//
+/*
+ * String helpers
+ */
 
 size_t aoc_count_chars(char const * s, char c) {
 	size_t count = 0;
@@ -186,9 +254,9 @@ void aoc_numbers_line_free(aoc_numbers_line num_line) {
 }
 
 
-//
-// Matrix helpers
-//
+/*
+ * Matrix helpers
+ */
 
 size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
 size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
@@ -243,23 +311,32 @@ bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest) {
 extern void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest);
 
 
-//
-// Main function boilerplate
-//
+/*
+ * Main function boilerplate
+ */
 
-int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
+static int parse_args_and_open(int argc, char ** argv, FILE ** input_file) {
 	if (argc < 2) {
 		char * prog_name = "PROGRAM_NAME";
 		if (argc > 0)
 			prog_name = argv[0];
 		fprintf(stderr, "Usage: %s INPUT_FILE\n", prog_name);
+		*input_file = NULL;
 		return AOC_EXIT_USAGE;
 	}
-	FILE* file = fopen(argv[1], "rb");
-	if (!file) {
+	*input_file = fopen(argv[1], "r");
+	if (!(*input_file)) {
 		perror("Could not open file");
 		return AOC_EXIT_NO_INPUT;
 	}
+	return EXIT_SUCCESS;
+}
+
+int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
+	FILE * file;
+	int exit_code = parse_args_and_open(argc, argv, &file);
+	if (exit_code != EXIT_SUCCESS)
+		return exit_code;
 
 	bool fail = false;
 	char* result = solve1(file);
@@ -299,6 +376,42 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 }
 
 
+int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve) {
+	FILE * file;
+	int exit_code = parse_args_and_open(argc, argv, &file);
+	if (exit_code != EXIT_SUCCESS)
+		return exit_code;
+
+	char * input = aoc_read_file(file);
+	fclose(file);
+	if (!input) {
+		perror("Error while parsing input");
+		return AOC_EXIT_IO_ERROR;
+	}
+
+	char ** lines_ = NULL;
+	size_t lines_buf_size;
+	size_t lines_n = aoc_tokenize(input, '\n', &lines_, &lines_buf_size);
+	char const * const * lines = (char const * const *)lines_;
+
+	bool had_err = false;
+	for (int32_t part = 1; part <= parts_implemented; ++part) {
+		aoc_err_t err = { 0 };
+		int64_t result = solve(lines, lines_n, part, &err);
+		if (!err.is_error) {
+			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
+		} else {
+			print_err(err);
+			free_err_msg(err);
+			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
+			had_err = true;
+		}
+	}
+	free(input);
+
+	return had_err ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+}
+
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
 	char * s = aoc_read_file(input);
 	if (!s) return NULL;
@@ -316,3 +429,4 @@ char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix
 	snprintf(buf, AOC_MSG_SIZE, "%" PRId64, result);
 	return buf;
 }
+
