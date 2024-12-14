@@ -26,7 +26,7 @@ int64_t solve_for_matrix1(aoc_matrix_t matrix) {
 
 	size_t next_guard_x = guard_x;
 	size_t next_guard_y = guard_y - 1;
-	while (aoc_matrix_bounded(matrix, next_guard_x, next_guard_y)) {
+	while (aoc_matrix_is_bound(matrix, next_guard_x, next_guard_y)) {
 		char next_cell = aoc_matrix_get(matrix, next_guard_x, next_guard_y);
 		switch (next_cell) {
 			case '#':

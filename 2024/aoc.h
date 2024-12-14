@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define AOC_EXIT_USAGE 64
 #define AOC_EXIT_NO_INPUT 66
@@ -71,7 +72,11 @@ extern size_t aoc_dir4_y_diffs[4];
 bool aoc_matrix_init(char * s, aoc_matrix_t * matrix);
 char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y);
 void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c);
-bool aoc_matrix_bounded(aoc_matrix_t matrix, size_t x, size_t y);
+bool aoc_matrix_is_bound(aoc_matrix_t matrix, size_t x, size_t y);
+bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest);
+inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
+	memcpy(dest->s, src.s, (src.width + 1) * src.height);
+}
 
 
 // Main function boilerplate

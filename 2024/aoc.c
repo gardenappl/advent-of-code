@@ -225,9 +225,22 @@ void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c) {
 	matrix.s[aoc_index_2d(matrix.width + 1, x, y)] = c;
 }
 
-bool aoc_matrix_bounded(aoc_matrix_t matrix, size_t x, size_t y) {
+bool aoc_matrix_is_bound(aoc_matrix_t matrix, size_t x, size_t y) {
 	return x < matrix.width && y < matrix.height;
 }
+
+bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest) {
+	char * new_s = malloc((src.width + 1) * src.height);
+	if (!new_s)
+		return EXIT_FAILURE;
+	dest->s = new_s;
+	aoc_matrix_copy_data(src, dest);
+	dest->width = src.width;
+	dest->height = src.height;
+	return EXIT_SUCCESS;
+}
+
+extern void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest);
 
 
 //

@@ -13,7 +13,7 @@ static bool word_search(aoc_matrix_t matrix, char const * word, size_t x, size_t
 		x += x_diff;
 		y += y_diff;
 		word++;
-	} while (*word && aoc_matrix_bounded(matrix, x, y) && aoc_matrix_get(matrix, x, y) == *word);
+	} while (*word && aoc_matrix_is_bound(matrix, x, y) && aoc_matrix_get(matrix, x, y) == *word);
 	return !(*word);
 }
 
