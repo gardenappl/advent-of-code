@@ -59,7 +59,7 @@ typedef struct {
 	char * s;
 	size_t width;
 	size_t height;
-} aoc_s_matrix;
+} aoc_matrix_t;
 
 extern size_t aoc_sq8_x_diffs[8];
 extern size_t aoc_sq8_y_diffs[8];
@@ -68,10 +68,10 @@ extern size_t aoc_cross4_y_diffs[4];
 extern size_t aoc_dir4_x_diffs[4];
 extern size_t aoc_dir4_y_diffs[4];
 
-bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix);
-char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y);
-void aoc_s_matrix_set(aoc_s_matrix s_matrix, size_t x, size_t y, char c);
-bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y);
+bool aoc_matrix_init(char * s, aoc_matrix_t * matrix);
+char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y);
+void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c);
+bool aoc_matrix_bounded(aoc_matrix_t matrix, size_t x, size_t y);
 
 
 // Main function boilerplate
@@ -79,6 +79,6 @@ bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y);
 int aoc_main(int argc, char * argv[], 
 		char * (*solve1)(FILE * const), 
 		char * (*solve2)(FILE * const));
-char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix));
+char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
 #endif /* end of include guard: AOC_H */

@@ -7,13 +7,13 @@
 
 #include "aoc.h"
 
-int64_t solve_for_matrix1(aoc_s_matrix matrix) {
+int64_t solve_for_matrix1(aoc_matrix_t matrix) {
 	size_t guard_x;
 	size_t guard_y;
 	size_t guard_dir = 0;
 	for (size_t x = 0; x < matrix.width; x++) {
 		for (size_t y = 0; y < matrix.height; y++) {
-			if (aoc_s_matrix_get(matrix, x, y) == '^') {
+			if (aoc_matrix_get(matrix, x, y) == '^') {
 				guard_x = x;
 				guard_y = y;
 				break;
@@ -22,18 +22,18 @@ int64_t solve_for_matrix1(aoc_s_matrix matrix) {
 	}
 
 	size_t visited = 1;
-	aoc_s_matrix_set(matrix, guard_x, guard_y, 'X');
+	aoc_matrix_set(matrix, guard_x, guard_y, 'X');
 
 	size_t next_guard_x = guard_x;
 	size_t next_guard_y = guard_y - 1;
-	while (aoc_s_matrix_bounded(matrix, next_guard_x, next_guard_y)) {
-		char next_cell = aoc_s_matrix_get(matrix, next_guard_x, next_guard_y);
+	while (aoc_matrix_bounded(matrix, next_guard_x, next_guard_y)) {
+		char next_cell = aoc_matrix_get(matrix, next_guard_x, next_guard_y);
 		switch (next_cell) {
 			case '#':
 				guard_dir = (guard_dir + 1) % 4;
 				break;
 			case '.':
-				aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'X');
+				aoc_matrix_set(matrix, next_guard_x, next_guard_y, 'X');
 				visited++;
 				// fprintf(stderr, "Visited: %zu\n%s\n", visited, matrix.s);
 				// fallthrough
@@ -50,7 +50,7 @@ int64_t solve_for_matrix1(aoc_s_matrix matrix) {
 
 static const char dir_codes[4] = { 0x01, 0x02, 0x04, 0x08 };
 
-void trace_back(aoc_s_matrix matrix, size_t guard_x, size_t guard_y, size_t guard_dir, size_t * traced) {
+void trace_back(aoc_matrix_t matrix, size_t guard_x, size_t guard_y, size_t guard_dir, size_t * traced) {
 	size_t opposite_dir = (guard_dir + 2) % 4;
 
 	size_t behind_guard_x = guard_x;
@@ -60,32 +60,32 @@ void trace_back(aoc_s_matrix matrix, size_t guard_x, size_t guard_y, size_t guar
 		size_t wall_dir = (guard_dir + 3) % 4;
 		size_t wall_x = behind_guard_x + aoc_dir4_x_diffs[wall_dir];
 		size_t wall_y = behind_guard_y + aoc_dir4_y_diffs[wall_dir];
-		if (aoc_s_matrix_bounded(matrix, wall_x, wall_y) && aoc_s_matrix_get(matrix, wall_x, wall_y) == '#') {
+		if (aoc_matrix_bounded(matrix, wall_x, wall_y) && aoc_matrix_get(matrix, wall_x, wall_y) == '#') {
 			trace_back(matrix, behind_guard_x, behind_guard_y, wall_dir, traced);
 		}
 
-		char behind_cell = aoc_s_matrix_get(matrix, behind_guard_x, behind_guard_y);
+		char behind_cell = aoc_matrix_get(matrix, behind_guard_x, behind_guard_y);
 		if (behind_cell == '#')
 			break;
 		char behind_cell_dirs = behind_cell - '.';
 		if (behind_cell_dirs & dir_codes[guard_dir])
 			break;
 		behind_cell = '.' + (behind_cell_dirs | dir_codes[guard_dir]);
-		aoc_s_matrix_set(matrix, behind_guard_x, behind_guard_y, behind_cell);
+		aoc_matrix_set(matrix, behind_guard_x, behind_guard_y, behind_cell);
 		behind_guard_x = behind_guard_x + aoc_dir4_x_diffs[opposite_dir];
 		behind_guard_y = behind_guard_y + aoc_dir4_y_diffs[opposite_dir];
 		(*traced)++;
-	} while (aoc_s_matrix_bounded(matrix, behind_guard_x, behind_guard_y));
+	} while (aoc_matrix_bounded(matrix, behind_guard_x, behind_guard_y));
 }
 
-int64_t solve_for_matrix2(aoc_s_matrix matrix) {
+int64_t solve_for_matrix2(aoc_matrix_t matrix) {
 	bool * loop_blocks = calloc(matrix.width * matrix.height, sizeof(bool));
 	size_t guard_x;
 	size_t guard_y;
 	size_t guard_dir = 0;
 	for (size_t x = 0; x < matrix.width; x++) {
 		for (size_t y = 0; y < matrix.height; y++) {
-			if (aoc_s_matrix_get(matrix, x, y) == '^') {
+			if (aoc_matrix_get(matrix, x, y) == '^') {
 				guard_x = x;
 				guard_y = y;
 				break;
@@ -94,12 +94,12 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 	}
 
 	size_t found_loops = 0;
-	aoc_s_matrix_set(matrix, guard_x, guard_y, '.');
+	aoc_matrix_set(matrix, guard_x, guard_y, '.');
 	_Static_assert((int)'.' + 15 < 256, "Charset has 15 characters after .");
 
 	size_t next_guard_x = guard_x;
 	size_t next_guard_y = guard_y - 1;
-	while (aoc_s_matrix_bounded(matrix, next_guard_x, next_guard_y)) {
+	while (aoc_matrix_bounded(matrix, next_guard_x, next_guard_y)) {
 		// Set "trail" of cells behind the guard
 		size_t traced = 0;
 		trace_back(matrix, guard_x, guard_y, guard_dir, &traced);
@@ -109,17 +109,17 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 		// }
 
 
-		char next_cell = aoc_s_matrix_get(matrix, next_guard_x, next_guard_y);
+		char next_cell = aoc_matrix_get(matrix, next_guard_x, next_guard_y);
 		if (next_cell == '#') {
 			guard_dir = (guard_dir + 1) % 4;
 			// fprintf(stderr, "\n%s\nTurning!\n", matrix.s);
 			// getc(stdin);
 		} else {
-			char cell = aoc_s_matrix_get(matrix, guard_x, guard_y);
+			char cell = aoc_matrix_get(matrix, guard_x, guard_y);
 
 			char next_cell_dirs = next_cell - '.';
 			next_cell = '.' + (next_cell_dirs | dir_codes[guard_dir]);
-			aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
+			aoc_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
 
 			guard_x = next_guard_x;
 			guard_y = next_guard_y;
@@ -128,9 +128,9 @@ int64_t solve_for_matrix2(aoc_s_matrix matrix) {
 			size_t guard_dir_turn = (guard_dir + 1) % 4;
 			char cell_dirs = cell - '.';
 			if (cell_dirs & dir_codes[guard_dir_turn]) {
-				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
+				// aoc_matrix_set(matrix, next_guard_x, next_guard_y, 'O');
 				// fprintf(stderr, "\n%s\nFOUND LOOP!\n", matrix.s);
-				// aoc_s_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
+				// aoc_matrix_set(matrix, next_guard_x, next_guard_y, next_cell);
 				if (loop_blocks[aoc_index_2d(matrix.width, next_guard_x, next_guard_y)]) {
 					fprintf(stderr, "Already found?!\n");
 				} else {

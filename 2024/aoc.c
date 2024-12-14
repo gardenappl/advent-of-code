@@ -198,11 +198,11 @@ size_t aoc_dir4_x_diffs[] = {  0,  1,  0, -1 };
 size_t aoc_dir4_y_diffs[] = { -1,  0,  1,  0 };
 
 
-bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix) {
+bool aoc_matrix_init(char * s, aoc_matrix_t * matrix) {
 	char * next_line = strchr(s, '\n');
 	if (!next_line) return EXIT_FAILURE;
 	
-	aoc_s_matrix m = { .s = s, .width = next_line - s };
+	aoc_matrix_t m = { .s = s, .width = next_line - s };
 	do {
 		if ((next_line - s) != m.width)
 			return EXIT_FAILURE;
@@ -213,20 +213,20 @@ bool aoc_s_matrix_init(char * s, aoc_s_matrix * s_matrix) {
 	if (strlen(s) != m.width)
 		return EXIT_FAILURE;
 	m.height++;
-	*s_matrix = m;
+	*matrix = m;
 	return EXIT_SUCCESS;
 }
 
-char aoc_s_matrix_get(aoc_s_matrix s_matrix, size_t x, size_t y) {
-	return s_matrix.s[aoc_index_2d(s_matrix.width + 1, x, y)];
+char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y) {
+	return matrix.s[aoc_index_2d(matrix.width + 1, x, y)];
 }
 
-void aoc_s_matrix_set(aoc_s_matrix s_matrix, size_t x, size_t y, char c) {
-	s_matrix.s[aoc_index_2d(s_matrix.width + 1, x, y)] = c;
+void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c) {
+	matrix.s[aoc_index_2d(matrix.width + 1, x, y)] = c;
 }
 
-bool aoc_s_matrix_bounded(aoc_s_matrix s_matrix, size_t x, size_t y) {
-	return x < s_matrix.width && y < s_matrix.height;
+bool aoc_matrix_bounded(aoc_matrix_t matrix, size_t x, size_t y) {
+	return x < matrix.width && y < matrix.height;
 }
 
 
@@ -286,17 +286,17 @@ int aoc_main(int argc, char * argv[], char * (*solve1)(FILE *), char * (*solve2)
 }
 
 
-char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_s_matrix)) {
+char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
 	char * s = aoc_read_file(input);
 	if (!s) return NULL;
 
-	aoc_s_matrix s_matrix;
-	bool err_ = aoc_s_matrix_init(s, &s_matrix);
+	aoc_matrix_t matrix;
+	bool err_ = aoc_matrix_init(s, &matrix);
 	if (err_) {
 		free((void *)s);
 		return NULL;
 	}
-	int64_t result = solve_for_matrix(s_matrix);
+	int64_t result = solve_for_matrix(matrix);
 	free((void *)s);
 
 	char * buf = malloc(AOC_MSG_SIZE);
