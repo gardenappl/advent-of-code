@@ -269,7 +269,7 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 
 	char32_t c32;
 	char32_t * c32_out = ws_out ? ws_out : &c32;
-	char print_c32[MB_LEN_MAX + 1];
+	// char print_c32[MB_LEN_MAX + 1];
 	while (n == NULL || *n > 1) {
 		size_t rc = mbrtoc32(c32_out, *s_in, 4, state);
 		switch (rc) {
@@ -285,14 +285,14 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 			case 0:
 				goto end_line;
 			default:
-				aoc_c32_to_str(*c32_out, print_c32, err);
-				fprintf(stderr, "Got char: '%s'\n", print_c32);
+				// aoc_c32_to_str(*c32_out, print_c32, err);
+				// fprintf(stderr, "Got char: '%s'\n", print_c32);
 				*s_in += rc;
 				if (*c32_out == U'\n')
 					goto end_line;
 				if (ws_out) {
 					++c32_out;
-					fprintf(stderr, "Next will write to %p\n", c32_out);
+					// fprintf(stderr, "Next will write to %p\n", c32_out);
 				}
 				++len;
 				if (n)
@@ -300,7 +300,7 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 		}
 	}
 end_line:
-	fprintf(stderr, "End line\n");
+	// fprintf(stderr, "End line\n");
 	if (ws_out)
 		*(c32_out + 1) = U'\0';
 	return len;
