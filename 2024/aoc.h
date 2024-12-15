@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
+// See sysexits.h
 #define AOC_EXIT_USAGE 64
 #define AOC_EXIT_DATA_ERR 65
 #define AOC_EXIT_NO_INPUT 66
@@ -189,36 +190,30 @@ inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c) {
 
 
 /**
- * Bit field
+ * Bit array
  */
 
 
 typedef struct {
 	char * data;
 	size_t bits_count;
-} aoc_bitfield_t;
+} aoc_bit_array_t;
 
-inline aoc_bitfield_t aoc_bitfield_make(size_t bits_count) {
-	aoc_bitfield_t bitfield = {
-		.data = (char *)malloc(aoc_div_ceil(bits_count, CHAR_BIT)),
-		.bits_count = bits_count
-	};
-	return bitfield;
-}
-inline bool aoc_bitfield_get(aoc_bitfield_t bitfield, size_t bit_index) {
+aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err);
+inline bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index) {
 	size_t char_index = bit_index / CHAR_BIT;
 	size_t bit_offset = bit_index % CHAR_BIT;
-	return bitfield.data[char_index] & (1 << bit_offset);
+	return bit_array.data[char_index] & (1 << bit_offset);
 }
-inline void aoc_bitfield_set(aoc_bitfield_t bitfield, size_t bit_index, bool b) {
+inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b) {
 	size_t char_index = bit_index / CHAR_BIT;
 	size_t bit_offset = bit_index % CHAR_BIT;
-	char c = bitfield.data[char_index];
+	char c = bit_array.data[char_index];
 	if (b == true)
 		c |= (1 << bit_offset);
 	else
 		c &= ~(1 << bit_offset);
-	bitfield.data[char_index] = c;
+	bit_array.data[char_index] = c;
 }
 
 

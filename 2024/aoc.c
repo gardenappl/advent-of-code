@@ -1,5 +1,6 @@
 #include "aoc.h"
 
+#include <locale.h>
 #include <uchar.h>
 #include <wchar.h>
 #include <assert.h>
@@ -438,6 +439,27 @@ extern wchar_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
 extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c);
 
 
+
+/**
+ * Bit array
+ */
+
+
+aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err) {
+	aoc_bit_array_t bit_array = {
+		.data = (char *)calloc(aoc_div_ceil(bits_count, CHAR_BIT), sizeof(char)),
+		.bits_count = bits_count
+	};
+	if (!bit_array.data) {
+		aoc_err(err, "Could not allocate bit array");
+	}
+	return bit_array;
+}
+extern bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index);
+extern void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b);
+
+
+
 /*
  * Main function boilerplate
  */
@@ -549,6 +571,11 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 
 
 int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve) {
+	char * locale = setlocale(LC_ALL, "C.utf8");
+	if (strcmp(locale, "C.utf8") != 0) {
+		return AOC_EXIT_SOFTWARE_FAIL;
+	}
+
 	FILE * file;
 	int exit_code = parse_args_and_open(argc, argv, &file);
 	if (exit_code != EXIT_SUCCESS)
