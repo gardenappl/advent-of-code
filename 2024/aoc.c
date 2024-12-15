@@ -289,8 +289,10 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 				*s_in += rc;
 				if (*c32_out == U'\n')
 					goto end_line;
-				if (ws_out)
+				if (ws_out) {
 					++c32_out;
+					fprintf(stderr, "Next will write to %p\n", c32_out);
+				}
 				++len;
 				if (n)
 					--(*n);
@@ -380,17 +382,27 @@ extern void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest);
 
 aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 	aoc_c32_2d_t matrix = { 0 };
-	matrix.height = aoc_count_chars(s, '\n') + 1;
+	size_t height = aoc_count_chars(s, '\n') + 1;
+	if (height > INT32_MAX) {
+		aoc_err(err, "Too tall");
+		return matrix;
+	}
+	matrix.height = height;
 
 	mbstate_t state;
 	memset(&state, 0, sizeof(mbstate_t));
 
 	char const * first_line = s;
-	matrix.width = aoc_c32_get_line(NULL, NULL, &first_line, &state, err);
+	size_t width = aoc_c32_get_line(NULL, NULL, &first_line, &state, err);
 	if (err->is_error)
 		return matrix;
+	if (width > INT32_MAX) {
+		aoc_err(err, "Too wide");
+		return matrix;
+	}
+	matrix.width = width;
 
-	size_t matrix_chars = (matrix.width + 1) * matrix.height;
+	size_t matrix_chars = matrix.width * matrix.height + 1;
 
 	matrix.ws = calloc(matrix_chars, sizeof(char32_t));
 	if (!matrix.ws) {
@@ -400,9 +412,9 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 
 	memset(&state, 0, sizeof(mbstate_t));
 
-	size_t line_n = 0;
+	int32_t line_n = 0;
 	while (line_n < matrix.height) {
-		size_t line_len = aoc_c32_get_line(matrix.ws + (matrix.width + 1) * line_n, &matrix_chars, &s, &state, err);
+		size_t line_len = aoc_c32_get_line(matrix.ws + matrix.width * line_n, &matrix_chars, &s, &state, err);
 		if (err->is_error) goto cleanup_matrix;
 
 		if (line_len != matrix.width) {

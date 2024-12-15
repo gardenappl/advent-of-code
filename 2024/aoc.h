@@ -169,6 +169,9 @@ inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
 }
 
 
+/**
+ * Unline aoc_matrix_t, doesn't have zero-delimiters between 'lines'
+ */
 typedef struct {
 	char32_t * ws;
 	int32_t width;
