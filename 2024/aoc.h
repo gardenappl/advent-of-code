@@ -85,6 +85,12 @@ size_t aoc_get_until_newline(char ** buf, size_t * buf_size, FILE * file);
 size_t aoc_count_chars(char const * s, char c);
 size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * tokens_buf_size);
 
+/**
+ * @deprecated	Since day 7. It was a bad idea to mutate the buf, only because I
+ * @deprecated	thought the stdlib tokenizer may have been convenient.
+ * @deprecated	Also I should've added a _t suffix.
+ * @deprecated	Conveniently this makes it easy to define a replacement type.
+ */
 typedef struct {
 	char * buf;
 
@@ -95,9 +101,22 @@ typedef struct {
 	size_t numbers_count;
 } aoc_numbers_line;
 
+/**
+ * @deprecated	Since day 7.
+ */
 void aoc_numbers_line_parse_new(char * s, aoc_numbers_line * num_line, char delimiter);
+/**
+ * @deprecated	Since day 7.
+ */
 void aoc_numbers_line_free(aoc_numbers_line num_line);
-
+/**
+ * @return	Estimated buffer size for aoc_numbers_line_parse
+ */
+size_t aoc_numbers_line_estimate_size(size_t longest_line_size);
+/**
+ * @return	Amount of numbers successfully parsed to nums
+ */
+size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size);
 
 
 /*
@@ -142,7 +161,7 @@ int aoc_main(int argc, char * argv[],
  */
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
-typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, int32_t part, aoc_err_t * err);
+typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
 int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
 
 #endif /* end of include guard: AOC_H */

@@ -23,7 +23,7 @@ struct aoc_err {
 };
 
 static void free_err_msg(aoc_err_t err) {
-	if (err.error_msg && err.error_msg_const)
+	if (err.error_msg && !err.error_msg_const)
 		free(err.error_msg);
 }
 
@@ -66,7 +66,7 @@ void aoc_err_msg_buf(aoc_err_t * err, char * error_msg_buf) {
 
 
 static bool print_err(aoc_err_t err) {
-	if (err.is_error)
+	if (!err.is_error)
 		return false;
 	if (err.check_errno) {
 		perror(err.error_msg);
@@ -253,6 +253,27 @@ void aoc_numbers_line_free(aoc_numbers_line num_line) {
 	free(num_line.numbers);
 }
 
+size_t aoc_numbers_line_estimate_size(size_t longest_line_size) {
+	return (longest_line_size + 1) / 2;
+}
+
+size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size) {
+	if (nums_buf_size == 0)
+		return 0;
+
+	size_t nums_n = 0;
+	do {
+		char * s_parse_end;
+		nums[nums_n] = (int32_t)strtol(s, &s_parse_end, 10);
+		if (s == s_parse_end)
+			break;
+		++nums_n;
+		s = s_parse_end;
+	} while (nums_n < nums_buf_size);
+
+	return nums_n;
+}
+
 
 /*
  * Matrix helpers
@@ -394,17 +415,24 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 	size_t lines_n = aoc_tokenize(input, '\n', &lines_, &lines_buf_size);
 	char const * const * lines = (char const * const *)lines_;
 
+	size_t longest_line_size = 0;
+	for (size_t i = 0; i < lines_n; ++i) {
+		size_t line_size = strlen(lines[i]);
+		if (line_size > longest_line_size)
+			longest_line_size = line_size;
+	}
+
 	bool had_err = false;
 	for (int32_t part = 1; part <= parts_implemented; ++part) {
 		aoc_err_t err = { 0 };
-		int64_t result = solve(lines, lines_n, part, &err);
-		if (!err.is_error) {
-			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
-		} else {
-			print_err(err);
+		int64_t result = solve(lines, lines_n, longest_line_size, part, &err);
+
+		if (print_err(err)) {
 			free_err_msg(err);
 			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
 			had_err = true;
+		} else {
+			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
 		}
 	}
 	free(input);
