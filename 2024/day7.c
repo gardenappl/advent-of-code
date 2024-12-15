@@ -7,9 +7,44 @@
 
 #include "aoc.h"
 
+static int64_t concat(int64_t a, int32_t b) {
+	int32_t b_digit_calc = b;
+	while (b_digit_calc > 0) {
+		b_digit_calc /= 10;
+		a *= 10;
+	}
+	a += b;
+	return a;
+}
+
+static bool try_reach_result(int32_t const * nums, size_t i, size_t nums_n, int64_t required_result, int64_t current_result, bool try_concat) {
+	if (i == nums_n)
+		return current_result == required_result;
+	if (current_result > required_result)
+		return false;
+
+	int32_t num = nums[i];
+	if (try_reach_result(nums, i + 1, nums_n, required_result, current_result + num, try_concat))
+		return true;
+	if (try_reach_result(nums, i + 1, nums_n, required_result, current_result * num, try_concat))
+		return true;
+	if (try_concat) {
+		if (try_reach_result(nums, i + 1, nums_n, required_result, concat(current_result, num), true))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * I misunderstood the assingment on part 2, for some reason I thought that the
+ * concat operator took precedence over + and *
+ * (even though clearly operator precedence isn't a thing here, since part 1 
+ * treats + and * the same way)
+ */
+
 typedef enum { ADD, MUL } op_t;
 
-static bool try_reach_result(int32_t const * nums, size_t nums_n, size_t i, 
+static bool try_reach_result_with_concat_precedence(int32_t const * nums, size_t nums_n, size_t i, 
 		int64_t prev_term, op_t op, int64_t term,
 		int64_t required_result, bool try_concat) {
 	fprintf(stderr, "i: %zu, (%" PRId64 " %c) %" PRId64 "\n", i, prev_term, op == ADD ? '+' : '*', term);
@@ -29,25 +64,20 @@ static bool try_reach_result(int32_t const * nums, size_t nums_n, size_t i,
 		return false;
 
 	int32_t next_num = nums[i + 1];
-	if (try_reach_result(nums, nums_n, i + 1, current_result, ADD, next_num, required_result, try_concat))
+	if (try_reach_result_with_concat_precedence(nums, nums_n, i + 1, current_result, ADD, next_num, required_result, try_concat))
 		return true;
-	if (try_reach_result(nums, nums_n, i + 1, current_result, MUL, next_num, required_result, try_concat))
+	if (try_reach_result_with_concat_precedence(nums, nums_n, i + 1, current_result, MUL, next_num, required_result, try_concat))
 		return true;
 
 	if (try_concat) {
 		fprintf(stderr, "%" PRId64 " || %" PRId32, term, next_num);
-		int32_t term_digit_calc = next_num;
-		while (term_digit_calc > 0) {
-			term_digit_calc /= 10;
-			term *= 10;
-			if (term > required_result) {
-				fprintf(stderr, " = (too much)\n");
-				return false;
-			}
+		term = concat(term, next_num);
+		if (term > required_result) {
+			fprintf(stderr, " = (too much)\n");
+			return false;
 		}
-		term += next_num;
 		fprintf(stderr, " = %" PRId64 "\n", term);
-		if (try_reach_result(nums, nums_n, i + 1, prev_term, op, term, required_result, true))
+		if (try_reach_result_with_concat_precedence(nums, nums_n, i + 1, prev_term, op, term, required_result, true))
 			return true;
 	}
 	return false;
@@ -81,7 +111,8 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t longest_
 			return -1;
 		}
 		// fprintf(stderr, "%zu numbers, first is %" PRId32 "\n", nums_n, nums[0]);
-		bool found = try_reach_result(nums, nums_n, 0, 0, ADD, nums[0], result, part == 2);
+		// bool found = try_reach_result(nums, nums_n, 0, 0, ADD, nums[0], result, part == 2);
+		bool found = try_reach_result(nums, 1, nums_n, result, nums[0], part == 2);
 		if (found) {
 			found_results_sum += result;
 			fprintf(stderr, "Found for line %s\n", line);
