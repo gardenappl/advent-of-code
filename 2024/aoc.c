@@ -1,5 +1,7 @@
 #include "aoc.h"
 
+#include <uchar.h>
+#include <wchar.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
@@ -64,6 +66,10 @@ void aoc_err_msg_buf(aoc_err_t * err, char * error_msg_buf) {
 	*err = err_;
 }
 
+bool aoc_is_err(aoc_err_t * err) {
+	return err && err->is_error;
+}
+
 
 static bool print_err(aoc_err_t err) {
 	if (!err.is_error)
@@ -107,24 +113,6 @@ AOC_COMPARE_DEFINE_FOR(int32_t)
 
 AOC_MOVE_VALUE_DEFINE_FOR(int32_t)
 
-
-// // https://stackoverflow.com/a/1226129
-// enum { BITS_PER_WORD = sizeof(uint32_t) * CHAR_BIT };
-// #define WORD_OFFSET(b) ((b) / BITS_PER_WORD)
-// #define BIT_OFFSET(b)  ((b) % BITS_PER_WORD)
-//
-// void aoc_bit_set(uint32_t *words, int n) { 
-// 	words[WORD_OFFSET(n)] |= (1 << BIT_OFFSET(n));
-// }
-//
-// void aoc_bit_clear(uint32_t *words, int n) {
-// 	words[WORD_OFFSET(n)] &= ~(1 << BIT_OFFSET(n)); 
-// }
-//
-// bool aoc_bit_get(uint32_t *words, int n) {
-// 	uint32_t bit = words[WORD_OFFSET(n)] & (1 << BIT_OFFSET(n));
-// 	return bit != 0; 
-// }
 
 extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
 
@@ -275,6 +263,65 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 }
 
 
+size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err) {
+	size_t len = 0;
+
+	char32_t c32;
+	char32_t * c32_out = ws_out ? ws_out : &c32;
+	char print_c32[MB_LEN_MAX + 1];
+	while (n == NULL || *n > 1) {
+		size_t rc = mbrtoc32(c32_out, *s_in, 4, state);
+		switch (rc) {
+			case (size_t)-1:
+				aoc_err_if_errno(err, "Encoding error!");
+				return rc;
+			case (size_t)-2:
+				// more than 4 bytes needed? Weird but okay
+				continue;
+			case (size_t)-3:
+				aoc_err(err, "32-bit surrogate pair? Shouldn't happen, unless it's not UTF-32...");
+				return rc;
+			case 0:
+				goto end_line;
+			default:
+				aoc_c32_to_str(*c32_out, print_c32, err);
+				fprintf(stderr, "Got char: '%s'\n", print_c32);
+				*s_in += rc;
+				if (*c32_out == U'\n')
+					goto end_line;
+				if (ws_out)
+					++c32_out;
+				++len;
+				if (n)
+					--(*n);
+		}
+	}
+end_line:
+	fprintf(stderr, "End line\n");
+	if (ws_out)
+		*(c32_out + 1) = U'\0';
+	return len;
+}
+
+void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err) {
+	mbstate_t state;
+	memset(&state, 0, sizeof(state));
+
+	size_t written = c32rtomb(str, c, &state);
+	switch (written) {
+		case 0:
+			aoc_err(err, "32-bit surrogate pair?");
+			return;
+		case (size_t)-1:
+			aoc_err_if_errno(err, "can't convert c32");
+			return;
+		default:
+			str[written] = '\0';
+			return;
+	}
+}
+
+
 /*
  * Matrix helpers
  */
@@ -330,6 +377,53 @@ bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest) {
 }
 
 extern void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest);
+
+aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
+	aoc_c32_2d_t matrix = { 0 };
+	matrix.height = aoc_count_chars(s, '\n') + 1;
+
+	mbstate_t state;
+	memset(&state, 0, sizeof(mbstate_t));
+
+	char const * first_line = s;
+	matrix.width = aoc_c32_get_line(NULL, NULL, &first_line, &state, err);
+	if (err->is_error)
+		return matrix;
+
+	size_t matrix_chars = (matrix.width + 1) * matrix.height;
+
+	matrix.ws = calloc(matrix_chars, sizeof(char32_t));
+	if (!matrix.ws) {
+		aoc_err(err, "couldn't allocate 32-bit matrix");
+		return matrix;
+	}
+
+	memset(&state, 0, sizeof(mbstate_t));
+
+	size_t line_n = 0;
+	while (line_n < matrix.height) {
+		size_t line_len = aoc_c32_get_line(matrix.ws + (matrix.width + 1) * line_n, &matrix_chars, &s, &state, err);
+		if (err->is_error) goto cleanup_matrix;
+
+		if (line_len != matrix.width) {
+			fprintf(stderr, "Expected %" PRId32 ", got %zu\n", matrix.width, line_len);
+			aoc_err(err, "Wrong width of input line");
+			goto cleanup_matrix;
+		}
+		++line_n;
+	}
+	if (*s != '\0') {
+		aoc_err(err, "Incorrectly parsed height of input");
+		goto cleanup_matrix;
+	}
+	return matrix;
+
+cleanup_matrix:
+	free(matrix.ws);
+	return matrix;
+}
+extern wchar_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
+extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c);
 
 
 /*
@@ -436,9 +530,53 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 		}
 	}
 	free(input);
+	free(lines_);
 
 	return had_err ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
+
+
+int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve) {
+	FILE * file;
+	int exit_code = parse_args_and_open(argc, argv, &file);
+	if (exit_code != EXIT_SUCCESS)
+		return exit_code;
+
+	char * input = aoc_read_file(file);
+	fclose(file);
+	if (!input) {
+		perror("Error while parsing input");
+		return AOC_EXIT_IO_ERROR;
+	}
+
+	aoc_err_t err = { 0 };
+
+	aoc_c32_2d_t matrix = aoc_c32_2d_parse(input, &err);
+
+	if (print_err(err)) {
+		free_err_msg(err);
+		free(input);
+		return AOC_EXIT_DATA_ERR;
+	}
+
+	bool had_err = false;
+	for (int32_t part = 1; part <= parts_implemented; ++part) {
+		int64_t result = solve(matrix, part, &err);
+
+		if (print_err(err)) {
+			free_err_msg(err);
+			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
+			had_err = true;
+		} else {
+			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
+		}
+	}
+	free(input);
+	free(matrix.ws);
+
+	return had_err ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+}
+
 
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
 	char * s = aoc_read_file(input);

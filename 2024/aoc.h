@@ -1,12 +1,16 @@
 #ifndef AOC_H
 #define AOC_H
 
+#include <uchar.h>
+#include <stdlib.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #define AOC_EXIT_USAGE 64
+#define AOC_EXIT_DATA_ERR 65
 #define AOC_EXIT_NO_INPUT 66
 #define AOC_EXIT_SOFTWARE_FAIL 70
 #define AOC_EXIT_IO_ERROR 74
@@ -48,6 +52,8 @@ void aoc_err(aoc_err_t * err, char const * err_msg);
  */
 void aoc_err_msg_buf(aoc_err_t * err, char * err_msg_buf);
 
+bool aoc_is_err(aoc_err_t * err);
+
 
 
 /*
@@ -65,6 +71,9 @@ AOC_MOVE_VALUE_DECLARE_FOR(int32_t)
 inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
 	return width * y + x;
 }
+
+#define aoc_check_bounds(matrix, x, y)  ((x) >= 0 && (y) >= 0 && (x) < (matrix).width && (y) < (matrix).height)
+#define aoc_div_ceil(a, b)  ((a) / (b) + ((a) % (b) > 0))
 
 
 
@@ -119,10 +128,21 @@ size_t aoc_numbers_line_estimate_size(size_t longest_line_size);
 size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size);
 
 
+size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err);
+
+/**
+ * @param	str	String array of size at least MB_CUR_MAX + 1 (or MB_LEN_MAX + 1)
+ */
+void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
+
+
 /*
  * Matrix helpers
  */
 
+/**
+ * @deprecated	Since day 8.
+ */
 typedef struct {
 	char * s;
 	size_t width;
@@ -139,11 +159,65 @@ extern size_t aoc_dir4_y_diffs[4];
 bool aoc_matrix_init(char * s, aoc_matrix_t * matrix);
 char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y);
 void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c);
+/**
+ * @deprecated Since day 8. Use aoc_check_bounds macro.
+ */
 bool aoc_matrix_is_bound(aoc_matrix_t matrix, size_t x, size_t y);
 bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest);
 inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
 	memcpy(dest->s, src.s, (src.width + 1) * src.height);
 }
+
+
+typedef struct {
+	char32_t * ws;
+	int32_t width;
+	int32_t height;
+} aoc_c32_2d_t;
+
+aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err);
+inline wchar_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
+	return matrix.ws[aoc_index_2d(matrix.width, x, y)];
+}
+inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c) {
+	matrix.ws[aoc_index_2d(matrix.width, x, y)] = c;
+}
+
+
+
+/**
+ * Bit field
+ */
+
+
+typedef struct {
+	char * data;
+	size_t bits_count;
+} aoc_bitfield_t;
+
+inline aoc_bitfield_t aoc_bitfield_make(size_t bits_count) {
+	aoc_bitfield_t bitfield = {
+		.data = (char *)malloc(aoc_div_ceil(bits_count, CHAR_BIT)),
+		.bits_count = bits_count
+	};
+	return bitfield;
+}
+inline bool aoc_bitfield_get(aoc_bitfield_t bitfield, size_t bit_index) {
+	size_t char_index = bit_index / CHAR_BIT;
+	size_t bit_offset = bit_index % CHAR_BIT;
+	return bitfield.data[char_index] & (1 << bit_offset);
+}
+inline void aoc_bitfield_set(aoc_bitfield_t bitfield, size_t bit_index, bool b) {
+	size_t char_index = bit_index / CHAR_BIT;
+	size_t bit_offset = bit_index % CHAR_BIT;
+	char c = bitfield.data[char_index];
+	if (b == true)
+		c |= (1 << bit_offset);
+	else
+		c &= ~(1 << bit_offset);
+	bitfield.data[char_index] = c;
+}
+
 
 
 /*
@@ -162,6 +236,10 @@ int aoc_main(int argc, char * argv[],
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
 typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
+typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err);
+
+
 int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
+int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve);
 
 #endif /* end of include guard: AOC_H */
