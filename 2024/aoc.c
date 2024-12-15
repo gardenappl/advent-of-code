@@ -89,30 +89,31 @@ static bool print_err(aoc_err_t err) {
  * Logic helpers
  */
 
-#define AOC_COMPARE_DEFINE_FOR(type)  int aoc_compare_##type(void const * a, void const * b) { \
-	type arg1 = *(type const *)a; \
-	type arg2 = *(type const *)b; \
- \
-	if (arg1 < arg2) return -1; \
-	if (arg1 > arg2) return 1; \
-	return 0; \
-}
-
-
-AOC_COMPARE_DEFINE_FOR(int32_t)
-
-#define AOC_MOVE_VALUE_DEFINE_FOR(type)  void aoc_move_value_##type(type * array, size_t index_from, size_t index_to) { \
-	assert(index_to < index_from); \
-	type prev_val = array[index_to]; \
-	array[index_to] = array[index_from]; \
-	for (size_t i = index_to; i < index_from; i++) { \
-		type val = array[i + 1]; \
-		array[i + 1] = prev_val; \
-		prev_val = val; \
+#define AOC_DEFINE_ARITHMETIC_HELPERS_FOR(type) \
+	int aoc_compare_##type(void const * a, void const * b) { \
+		type arg1 = *(type const *)a; \
+		type arg2 = *(type const *)b; \
+	\
+		if (arg1 < arg2) return -1; \
+		if (arg1 > arg2) return 1; \
+		return 0; \
 	} \
-}
+	\
+	void aoc_move_value_##type(type * array, size_t index_from, size_t index_to) { \
+		assert(index_to < index_from); \
+		type prev_val = array[index_to]; \
+		array[index_to] = array[index_from]; \
+		for (size_t i = index_to; i < index_from; i++) { \
+			type val = array[i + 1]; \
+			array[i + 1] = prev_val; \
+			prev_val = val; \
+		} \
+	} \
+	\
+	extern type aoc_min_##type(type a, type b); \
+	extern type aoc_max_##type(type a, type b); \
 
-AOC_MOVE_VALUE_DEFINE_FOR(int32_t)
+AOC_DEFINE_ARITHMETIC_HELPERS_FOR(int32_t)
 
 
 extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
@@ -571,10 +572,11 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 
 
 int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve) {
-	char * locale = setlocale(LC_ALL, "C.utf8");
-	if (strcmp(locale, "C.utf8") != 0) {
-		return AOC_EXIT_SOFTWARE_FAIL;
-	}
+	setlocale(LC_ALL, "");
+	// char * locale = setlocale(LC_ALL, "C.utf8");
+	// if (strcmp(locale, "C.utf8") != 0) {
+	// 	return AOC_EXIT_SOFTWARE_FAIL;
+	// }
 
 	FILE * file;
 	int exit_code = parse_args_and_open(argc, argv, &file);
