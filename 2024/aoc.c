@@ -329,6 +329,7 @@ size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
 size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
 size_t aoc_dir4_x_diffs[] = {  0,  1,  0, -1 };
 size_t aoc_dir4_y_diffs[] = { -1,  0,  1,  0 };
+char aoc_dir4_chars[] = { '^', '>', 'v', '<' };
 
 
 bool aoc_matrix_init(char * s, aoc_matrix_t * matrix) {
@@ -473,6 +474,22 @@ aoc_bit_array_t aoc_bit_array_copy(aoc_bit_array_t bit_array, aoc_err_t * err) {
 extern bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index);
 extern void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b);
 extern void aoc_bit_array_reset(aoc_bit_array_t bit_array);
+
+void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file) {
+	size_t line_bits = 0;
+	for (size_t i = 0; i < bit_array.bits_count; ++i) {
+		bool b = aoc_bit_array_get(bit_array, i);
+
+		fputc(b ? true_c : false_c, file);
+
+		++line_bits;
+		if (line_bits == width) {
+			line_bits = 0;
+			fputc('\n', file);
+		}
+	}
+	fputc('\n', file);
+}
 
 
 

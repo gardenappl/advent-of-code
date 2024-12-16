@@ -149,7 +149,7 @@ void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
  */
 
 /**
- * @deprecated	Since day 8.
+ * @deprecated	Since day 8. Use aoc_c32_2d_t instead.
  */
 typedef struct {
 	char * s;
@@ -157,21 +157,53 @@ typedef struct {
 	size_t height;
 } aoc_matrix_t;
 
+
 extern size_t aoc_sq8_x_diffs[8];
 extern size_t aoc_sq8_y_diffs[8];
 extern size_t aoc_cross4_x_diffs[4];
 extern size_t aoc_cross4_y_diffs[4];
-extern size_t aoc_dir4_x_diffs[4];
-extern size_t aoc_dir4_y_diffs[4];
-
-bool aoc_matrix_init(char * s, aoc_matrix_t * matrix);
-char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y);
-void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c);
 /**
- * @deprecated Since day 8. Use aoc_check_bounds macro.
+ * Up, right, down, left
+ */
+extern size_t aoc_dir4_x_diffs[4];
+/**
+ * Up, right, down, left
+ */
+extern size_t aoc_dir4_y_diffs[4];
+/**
+ * Up, right, down, left
+ */
+extern char aoc_dir4_chars[4];
+
+
+/**
+ * @deprecated	Since day 8. Use aoc_c32_2d_t instead.
+ */
+bool aoc_matrix_init(char * s, aoc_matrix_t * matrix);
+
+/**
+ * @deprecated	Since day 8. Use aoc_c32_2d_t instead.
+ */
+char aoc_matrix_get(aoc_matrix_t matrix, size_t x, size_t y);
+
+/**
+ * @deprecated	Since day 8. Use aoc_c32_2d_t instead.
+ */
+void aoc_matrix_set(aoc_matrix_t matrix, size_t x, size_t y, char c);
+
+/**
+ * @deprecated	Since day 8. Use aoc_check_bounds macro.
  */
 bool aoc_matrix_is_bound(aoc_matrix_t matrix, size_t x, size_t y);
+
+/**
+ * @deprecated	Since day 8. Use aoc_check_bounds macro.
+ */
 bool aoc_matrix_mkcopy(aoc_matrix_t src, aoc_matrix_t * dest);
+
+/**
+ * @deprecated	Since day 8. Use aoc_check_bounds macro.
+ */
 inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
 	memcpy(dest->s, src.s, (src.width + 1) * src.height);
 }
@@ -226,6 +258,7 @@ inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool 
 inline void aoc_bit_array_reset(aoc_bit_array_t bit_array) {
 	memset(bit_array.data, 0, aoc_div_ceil(bit_array.bits_count, CHAR_BIT));
 }
+void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file);
 
 
 
