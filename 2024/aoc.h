@@ -100,6 +100,10 @@ size_t aoc_get_until_newline(char ** buf, size_t * buf_size, FILE * file);
  */
 
 size_t aoc_count_chars(char const * s, char c);
+/**
+ * Warning: not the same as splitting a string, tokenizing will skip multiple whitespace characters and ignore empty fields.
+ * Also it relies on strtok which is not thread-safe. Whoops.
+ */
 size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * tokens_buf_size);
 
 /**
