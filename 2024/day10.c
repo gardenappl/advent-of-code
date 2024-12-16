@@ -5,12 +5,16 @@
 
 #include "aoc.h"
 
-static int32_t count_paths(aoc_c32_2d_t matrix, int32_t x, int32_t y, char32_t height, aoc_bit_array_t visited) {
+typedef struct trailhead_info {
+	int32_t score;
+	int32_t rating;
+} trailhead_info_t;
+
+static trailhead_info_t count_paths(aoc_c32_2d_t matrix, int32_t x, int32_t y, char32_t height, aoc_bit_array_t visited) {
 	aoc_bit_array_set(visited, aoc_index_2d(matrix.width, x, y), true);
 
 	// char char32_print[MB_LEN_MAX] = { 0 };
-
-	int32_t paths = 0;
+	trailhead_info_t info = { 0 };
 	for (int32_t dir = 0; dir < 4; ++dir) {
 		int32_t x_next = x + aoc_dir4_x_diffs[dir];
 		int32_t y_next = y + aoc_dir4_y_diffs[dir];
@@ -30,22 +34,23 @@ static int32_t count_paths(aoc_c32_2d_t matrix, int32_t x, int32_t y, char32_t h
 		if (height_next == U'9') {
 			if (!aoc_bit_array_get(visited, index_2d_next)) {
 				aoc_bit_array_set(visited, index_2d_next, true);
-				++paths;
+				++info.score;
 			}
+			++info.rating;
 		} else {
-			paths += count_paths(matrix, x_next, y_next, height_next, visited);
-			// if (aoc_is_err(err)) 
-			// 	goto cleanup_visited;
+			trailhead_info_t next = count_paths(matrix, x_next, y_next, height_next, visited);
+			info.score += next.score;
+			info.rating += next.rating;
 		}
 	}
 
 	if (height == U'0')
-		fprintf(stderr, "From x: %" PRId32 " y: %" PRId32 " got %" PRId32 " paths.\n", x, y, paths);
-	return paths;
+		fprintf(stderr, "x: %" PRId32 " y: %" PRId32 " has score %" PRId32 " and rating %" PRId32 ".\n", x, y, info.score, info.rating);
+	return info;
 }
 
 static int64_t solve(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err) {
-	int64_t paths_total = 0;
+	int64_t sum = 0;
 
 	aoc_bit_array_t visited = aoc_bit_array_make(matrix.width * matrix.height, err);
 	if (aoc_is_err(err))
@@ -55,15 +60,19 @@ static int64_t solve(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err) {
 		for (int32_t x = 0; x < matrix.width; ++x) {
 			char32_t height = aoc_c32_2d_get(matrix, x, y);
 			if (height == U'0') {
-				paths_total += count_paths(matrix, x, y, U'0', visited);
+				trailhead_info_t info = count_paths(matrix, x, y, U'0', visited);
+				if (part == 1)
+					sum += info.score;
+				else
+					sum += info.rating;
 				aoc_bit_array_reset(visited);
 			}
 		}
 	}
 
-	return paths_total;
+	return sum;
 }
 
 int main(int argc, char * argv[]) {
-	aoc_main_parse_c32_2d(argc, argv, 1, solve);
+	aoc_main_parse_c32_2d(argc, argv, 2, solve);
 }
