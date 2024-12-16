@@ -61,7 +61,7 @@ bool aoc_is_err(aoc_err_t * err);
  * Logic helpers
  */
 
-#define AOC_DECLARE_ARITHMETIC_HELPERS_FOR(type) \
+#define AOC_DECLARE_HELPERS_FOR(type) \
 	int aoc_compare_##type(void const * a, void const * b); \
 	\
 	void aoc_move_value_##type(type * array, size_t index_from, size_t index_to); \
@@ -72,9 +72,16 @@ bool aoc_is_err(aoc_err_t * err);
 	\
 	inline type aoc_max_##type(type a, type b) { \
 		return (a > b) ? a : b; \
+	} \
+	\
+	inline void aoc_swap_##type(type * a, type * b) { \
+		*a ^= *b; \
+		*b ^= *a; \
+		*a ^= *b; \
 	}
 
-AOC_DECLARE_ARITHMETIC_HELPERS_FOR(int32_t)
+AOC_DECLARE_HELPERS_FOR(int32_t)
+AOC_DECLARE_HELPERS_FOR(int64_t)
 
 inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
 	return width * y + x;

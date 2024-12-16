@@ -89,7 +89,7 @@ static bool print_err(aoc_err_t err) {
  * Logic helpers
  */
 
-#define AOC_DEFINE_ARITHMETIC_HELPERS_FOR(type) \
+#define AOC_DEFINE_HELPERS_FOR(type) \
 	int aoc_compare_##type(void const * a, void const * b) { \
 		type arg1 = *(type const *)a; \
 		type arg2 = *(type const *)b; \
@@ -112,8 +112,10 @@ static bool print_err(aoc_err_t err) {
 	\
 	extern type aoc_min_##type(type a, type b); \
 	extern type aoc_max_##type(type a, type b); \
+	extern void aoc_swap_##type(type * a, type * b);
 
-AOC_DEFINE_ARITHMETIC_HELPERS_FOR(int32_t)
+AOC_DEFINE_HELPERS_FOR(int32_t)
+AOC_DEFINE_HELPERS_FOR(int64_t)
 
 
 extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
