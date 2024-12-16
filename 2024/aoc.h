@@ -207,6 +207,7 @@ typedef struct {
 } aoc_bit_array_t;
 
 aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err);
+aoc_bit_array_t aoc_bit_array_copy(aoc_bit_array_t bit_array, aoc_err_t * err);
 inline bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index) {
 	size_t char_index = bit_index / CHAR_BIT;
 	size_t bit_offset = bit_index % CHAR_BIT;

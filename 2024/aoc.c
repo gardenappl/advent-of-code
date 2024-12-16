@@ -456,6 +456,21 @@ aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err) {
 	}
 	return bit_array;
 }
+
+aoc_bit_array_t aoc_bit_array_copy(aoc_bit_array_t bit_array, aoc_err_t * err) {
+	size_t words_count = aoc_div_ceil(bit_array.bits_count, CHAR_BIT);
+	aoc_bit_array_t bit_array2 = {
+		.data = (char *)malloc(words_count),
+		.bits_count = bit_array.bits_count
+	};
+	if (!bit_array2.data) {
+		aoc_err(err, "Could not allocate bit array");
+		return bit_array2;
+	}
+	memcpy(bit_array2.data, bit_array.data, words_count);
+	return bit_array2;
+}
+
 extern bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index);
 extern void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b);
 extern void aoc_bit_array_reset(aoc_bit_array_t bit_array);
