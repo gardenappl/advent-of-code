@@ -172,9 +172,7 @@ size_t aoc_get_until_newline(char ** restrict buf, size_t * restrict buf_size, F
 			break;
 		if (i >= *buf_size) {
 			*buf_size *= 2;
-			// fprintf(stderr, "string realloc: %p %zu\n", *buf, *buf_size);
 			*buf = realloc(*buf, *buf_size);
-			// fprintf(stderr, "string after realloc: %p %zu\n", *buf, *buf_size);
 		}
 		(*buf)[i] = c;
 		i++;
@@ -204,7 +202,6 @@ size_t aoc_count_chars(char const * s, char c) {
 size_t aoc_tokenize(char * restrict s, char delimiter, char *** restrict token_starts, size_t * restrict tokens_buf_size) {
 	size_t fields_n = aoc_count_chars(s, delimiter) + 1;
 	char delim_string[2] = { delimiter, 0 };
-	// fprintf(stderr, "delim: '%s', fields: %zu\n", delim_string, fields_n);
 
 	if (*token_starts == NULL || *tokens_buf_size == 0) {
 		*tokens_buf_size = fields_n;
@@ -270,15 +267,14 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 
 	char32_t c32;
 	char32_t * c32_out = ws_out ? ws_out : &c32;
-	// char print_c32[MB_LEN_MAX + 1];
 	while (n == NULL || *n > 1) {
-		size_t rc = mbrtoc32(c32_out, *s_in, 4, state);
+		size_t rc = mbrtoc32(c32_out, *s_in, MB_CUR_MAX, state);
 		switch (rc) {
 			case (size_t)-1:
 				aoc_err_if_errno(err, "Encoding error!");
 				return rc;
 			case (size_t)-2:
-				// more than 4 bytes needed? Weird but okay
+				// more than MB_CUR_MAX bytes needed? Weird but I guess I can handle it
 				continue;
 			case (size_t)-3:
 				aoc_err(err, "32-bit surrogate pair? Shouldn't happen, unless it's not UTF-32...");
@@ -286,14 +282,11 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 			case 0:
 				goto end_line;
 			default:
-				// aoc_c32_to_str(*c32_out, print_c32, err);
-				// fprintf(stderr, "Got char: '%s'\n", print_c32);
 				*s_in += rc;
 				if (*c32_out == U'\n')
 					goto end_line;
 				if (ws_out) {
 					++c32_out;
-					// fprintf(stderr, "Next will write to %p\n", c32_out);
 				}
 				++len;
 				if (n)
@@ -301,9 +294,9 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 		}
 	}
 end_line:
-	// fprintf(stderr, "End line\n");
-	if (ws_out)
-		*(c32_out + 1) = U'\0';
+	if (ws_out) {
+		*c32_out = U'\0';
+	}
 	return len;
 }
 
@@ -404,7 +397,12 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 	}
 	matrix.width = width;
 
-	size_t matrix_chars = matrix.width * matrix.height + 1;
+	int32_t matrix_chars_ = matrix.width * matrix.height + 1;
+	if (matrix_chars_ > SIZE_MAX) {
+		aoc_err(err, "Too big");
+		return matrix;
+	}
+	size_t matrix_chars = matrix_chars_;
 
 	matrix.ws = calloc(matrix_chars, sizeof(char32_t));
 	if (!matrix.ws) {
@@ -417,7 +415,8 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 	int32_t line_n = 0;
 	while (line_n < matrix.height) {
 		size_t line_len = aoc_c32_get_line(matrix.ws + matrix.width * line_n, &matrix_chars, &s, &state, err);
-		if (err->is_error) goto cleanup_matrix;
+		if (err->is_error) 
+			goto cleanup_matrix;
 
 		if (line_len != matrix.width) {
 			fprintf(stderr, "Expected %" PRId32 ", got %zu\n", matrix.width, line_len);
@@ -427,7 +426,7 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 		++line_n;
 	}
 	if (*s != '\0') {
-		aoc_err(err, "Incorrectly parsed height of input");
+		aoc_err(err, "Incorrectly parsed height of input, or extra data on last line");
 		goto cleanup_matrix;
 	}
 	return matrix;
