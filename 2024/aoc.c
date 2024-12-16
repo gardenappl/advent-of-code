@@ -436,8 +436,8 @@ cleanup_matrix:
 	free(matrix.ws);
 	return matrix;
 }
-extern wchar_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
-extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c);
+extern char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
+extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c);
 
 
 
@@ -458,6 +458,7 @@ aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err) {
 }
 extern bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index);
 extern void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b);
+extern void aoc_bit_array_reset(aoc_bit_array_t bit_array);
 
 
 

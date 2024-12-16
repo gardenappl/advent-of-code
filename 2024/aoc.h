@@ -187,10 +187,10 @@ typedef struct {
 } aoc_c32_2d_t;
 
 aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err);
-inline wchar_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
+inline char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
 	return matrix.ws[aoc_index_2d(matrix.width, x, y)];
 }
-inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, wchar_t c) {
+inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c) {
 	matrix.ws[aoc_index_2d(matrix.width, x, y)] = c;
 }
 
@@ -221,6 +221,9 @@ inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool 
 	else
 		c &= ~(1 << bit_offset);
 	bit_array.data[char_index] = c;
+}
+inline void aoc_bit_array_reset(aoc_bit_array_t bit_array) {
+	memset(bit_array.data, 0, aoc_div_ceil(bit_array.bits_count, CHAR_BIT));
 }
 
 
