@@ -112,7 +112,8 @@ static bool print_err(aoc_err_t err) {
 	\
 	extern type aoc_min_##type(type a, type b); \
 	extern type aoc_max_##type(type a, type b); \
-	extern void aoc_swap_##type(type * a, type * b);
+	extern void aoc_swap_##type(type * a, type * b); \
+	extern type aoc_mod_##type(type a, type b);
 
 AOC_DEFINE_HELPERS_FOR(int32_t)
 AOC_DEFINE_HELPERS_FOR(int64_t)
