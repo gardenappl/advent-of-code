@@ -18,12 +18,14 @@
  * Error handling
  */
 
-struct aoc_err {
-	bool is_error;
+struct aoc_ex {
+	int code;
 	bool check_errno;
 	bool error_msg_const;
 	char * error_msg;
 };
+
+typedef struct aoc_err aoc_err_;
 
 static void free_err_msg(aoc_err_t err) {
 	if (err.error_msg && !err.error_msg_const)
@@ -39,41 +41,23 @@ bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg) {
 	return false;
 }
 
-bool aoc_err_if_errno_msg_buf(aoc_err_t * err, char * err_msg_buf) {
-	if (errno) {
-		aoc_err_msg_buf(err, err_msg_buf);
-		err->check_errno = true;
-		return true;
-	}
-	return false;
-}
-
 void aoc_err(aoc_err_t * err, char const * error_msg) {
 	free_err_msg(*err);
 	aoc_err_t err_ = {
-		.is_error = true,
+		.code = EXIT_FAILURE,
 		.error_msg = (char *)error_msg,
 		.error_msg_const = true
 	};
 	*err = err_;
 }
 
-void aoc_err_msg_buf(aoc_err_t * err, char * error_msg_buf) {
-	free_err_msg(*err);
-	aoc_err_t err_ = {
-		.is_error = true,
-		.error_msg = error_msg_buf
-	};
-	*err = err_;
-}
-
 bool aoc_is_err(aoc_err_t * err) {
-	return err && err->is_error;
+	return err && err->code != EXIT_SUCCESS;
 }
 
 
 static bool print_err(aoc_err_t err) {
-	if (!err.is_error)
+	if (err.code == EXIT_SUCCESS)
 		return false;
 	if (err.check_errno) {
 		perror(err.error_msg);
@@ -81,6 +65,50 @@ static bool print_err(aoc_err_t err) {
 		fputs(err.error_msg, stderr);
 	}
 	return true;
+}
+
+struct aoc_ex * make_ex_if_needed(struct aoc_ex ** e, int exit_code) {
+	struct aoc_ex * exception = *e;
+	if (!exception)
+		exception = calloc(1, sizeof(struct aoc_ex));
+	if (!exception)
+		exit(exit_code);
+	return exception;
+}
+
+void aoc_throw_(struct aoc_ex ** e, int code, char const * msg) {
+	fprintf(stderr, "'%s' %i %p\n", msg, code, e);
+	// *e = calloc(1, sizeof(struct aoc_ex));
+	// struct aoc_ex * exception = make_ex_if_needed(e, code);
+	// exception->code = code;
+	// exception->error_msg = (char *)msg;
+	// exception->error_msg_const = true;
+}
+
+aoc_err_t * aoc_ex_to_err(struct aoc_ex ** e) {
+	return make_ex_if_needed(e, EXIT_FAILURE);
+}
+
+bool aoc_throw_on_err(aoc_err_t ** e, aoc_err_t * err) {
+	if (*e == err)
+		return true;
+
+	if (err) {
+		if (err->code && !(*e)) {
+			*e = err;
+		} else {
+			free(err);
+		}
+	}
+	return *e != NULL;
+}
+
+bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e) {
+	if (*e) {
+		*err = **e;
+		free(*e);
+	}
+	return err->code;
 }
 
 
@@ -265,18 +293,18 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 }
 
 
-char32_t aoc_c32_get(char const * str, char const ** str_end, mbstate_t * state, aoc_err_t * err) {
+char32_t aoc_c32_get(char const * str, char const ** str_end, mbstate_t * state, aoc_ex_t * e) {
 	char32_t c;
 	size_t rs = mbrtoc32(&c, str, MB_LEN_MAX, state);
 	switch (rs) {
 		case (size_t)-1:
-			aoc_err_if_errno(err, "encoding error");
+			aoc_throw_fail(e, "encoding error");
 			return c;
 		case (size_t)-2:
-			aoc_err_if_errno(err, "should not need more than MB_LEN_MAX to parse mb string");
+			aoc_throw_fail(e, "should not need more than MB_LEN_MAX to parse mb string");
 			return c;
 		case (size_t)-3:
-			aoc_err(err, "32-bit surrogate pair? shouldn't happen, unless it's not UTF-32...");
+			aoc_throw_fail(e, "32-bit surrogate pair? shouldn't happen, unless it's not UTF-32...");
 			return c;
 	}
 	if (str_end)
@@ -291,8 +319,8 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 	char32_t c32;
 	char32_t * c32_out = ws_out ? ws_out : &c32;
 	while (n == NULL || *n > 1) {
-		*c32_out = aoc_c32_get(*s_in, s_in, state, err);
-		if (aoc_is_err(err))
+		*c32_out = aoc_c32_get(*s_in, s_in, state, &err);
+		if (err)
 			return 0;
 
 		if (*c32_out == U'\n')
@@ -403,7 +431,7 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 
 	char const * first_line = s;
 	size_t width = aoc_c32_get_line(NULL, NULL, &first_line, &state, err);
-	if (err->is_error)
+	if (aoc_is_err(err))
 		return matrix;
 	if (width > INT32_MAX) {
 		aoc_err(err, "Too wide");
@@ -429,7 +457,7 @@ aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err) {
 	int32_t line_n = 0;
 	while (line_n < matrix.height) {
 		size_t line_len = aoc_c32_get_line(matrix.ws + matrix.width * line_n, &matrix_chars, &s, &state, err);
-		if (err->is_error) 
+		if (aoc_is_err(err)) 
 			goto cleanup_matrix;
 
 		if (line_len != matrix.width) {
@@ -455,7 +483,7 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	aoc_c32_2d_t matrix = { 0 };
 
 	if (lines_n == 0) {
-		aoc_err(err, AOC_INVALID_FILE);
+		aoc_err(err, AOC_MSG_INVALID_FILE);
 		return matrix;
 	}
 	char const * line = lines[0];
@@ -464,14 +492,14 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	char c;
 	while ((c = *line)) {
 		if (c != boundary) {
-			aoc_err(err, AOC_INVALID_MATRIX " (first line)");
+			aoc_err(err, AOC_MSG_INVALID_MATRIX " (first line)");
 			return matrix;
 		}
 		++matrix.width;
 		++line;
 	}
 	if (matrix.width == 0) {
-		aoc_err(err, AOC_INVALID_MATRIX " (empty)");
+		aoc_err(err, AOC_MSG_INVALID_MATRIX " (empty)");
 		return matrix;
 	}
 
@@ -507,19 +535,20 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 		state = (mbstate_t){ 0 };
 
 		for (size_t x = 0; x < matrix.width; ++x) {
-			char32_t c32 = aoc_c32_get(line, &line, &state, err);
-			if (aoc_is_err(err))
+			struct aoc_ex * e = NULL;
+			char32_t c32 = aoc_c32_get(line, &line, &state, &e);
+			if (aoc_err_if_ex(err, &e))
 				goto undo_matrix;
 
 			if (c32 == U'\0') {
-				aoc_err(err, AOC_INVALID_MATRIX " (line too small)");
+				aoc_err(err, AOC_MSG_INVALID_MATRIX " (line too small)");
 				goto undo_matrix;
 			}
 			matrix.ws[matrix_i] = c32;
 			++matrix_i;
 		}
 		if (matrix.ws[matrix_i - 1] != boundary_c32) {
-			aoc_err(err, AOC_INVALID_MATRIX " (line doesn't end with boundary)");
+			aoc_err(err, AOC_MSG_INVALID_MATRIX " (line doesn't end with boundary)");
 			goto undo_matrix;
 		}
 	}
@@ -527,7 +556,7 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	line = lines[matrix.height - 1];
 	while ((c = *line)) {
 		if (c != '#') {
-			aoc_err(err, AOC_INVALID_MATRIX " (invalid final line)");
+			aoc_err(err, AOC_MSG_INVALID_MATRIX " (invalid final line)");
 			return matrix;
 		}
 		++line;
@@ -542,6 +571,25 @@ undo_matrix:
 
 extern char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
 extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c);
+
+void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e) {
+	char c32_str[MB_LEN_MAX + 1];
+	for (size_t y = 0; y < matrix.height; ++y) {
+		for (size_t x = 0; x < matrix.width; ++x) {
+			char32_t c = aoc_c32_2d_get(matrix, x, y);
+
+			aoc_err_t * err = aoc_ex_to_err(e);
+			aoc_c32_to_str(c, c32_str, err);
+			if (aoc_throw_on_err(e, err))
+				return;
+
+			fprintf(file, "%s", c32_str);
+		}
+		fprintf(file, "\n");
+	}
+	if (ferror(file))
+		aoc_throw(e, AOC_EX_IO_ERROR, "could not print matrix");
+}
 
 
 
@@ -579,7 +627,7 @@ extern bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index);
 extern void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b);
 extern void aoc_bit_array_reset(aoc_bit_array_t bit_array);
 
-void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file) {
+void aoc_bit_array_2d_fprint(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file) {
 	size_t line_bits = 0;
 	for (size_t i = 0; i < bit_array.bits_count; ++i) {
 		bool b = aoc_bit_array_get(bit_array, i);
@@ -594,6 +642,7 @@ void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_
 	}
 	fputc('\n', file);
 }
+extern void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file);
 
 
 
@@ -608,12 +657,12 @@ static int parse_args_and_open(int argc, char ** argv, FILE ** input_file) {
 			prog_name = argv[0];
 		fprintf(stderr, "Usage: %s INPUT_FILE\n", prog_name);
 		*input_file = NULL;
-		return AOC_EXIT_USAGE;
+		return AOC_EX_USAGE;
 	}
 	*input_file = fopen(argv[1], "r");
 	if (!(*input_file)) {
 		perror("Could not open file");
-		return AOC_EXIT_NO_INPUT;
+		return AOC_EX_NO_INPUT;
 	}
 	return EXIT_SUCCESS;
 }
@@ -631,7 +680,7 @@ int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(
 		puts(result);
 	} else if (ferror(file)) {
 		perror("File error");
-		return AOC_EXIT_IO_ERROR;
+		return AOC_EX_IO_ERROR;
 	} else {
 		fprintf(stderr, "Part 1 fail!\n");
 		fail = true;
@@ -640,7 +689,7 @@ int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(
 	fseek(file, 0, SEEK_SET);
 	if (ferror(file)) {
 		perror("Could not seek?");
-		return AOC_EXIT_IO_ERROR;
+		return AOC_EX_IO_ERROR;
 	}
 
 	if (solve2) {
@@ -650,7 +699,7 @@ int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(
 			puts(result);
 		} else if (ferror(file)) {
 			perror("File error");
-			return AOC_EXIT_IO_ERROR;
+			return AOC_EX_IO_ERROR;
 		} else {
 			fprintf(stderr, "Part 2 fail!\n");
 			fail = true;
@@ -658,7 +707,7 @@ int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(
 	}
 
 	fclose(file);
-	return fail ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+	return fail ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
 
@@ -672,7 +721,7 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 	fclose(file);
 	if (!input) {
 		perror("Error while parsing input");
-		return AOC_EXIT_IO_ERROR;
+		return AOC_EX_IO_ERROR;
 	}
 
 	char ** lines_ = NULL;
@@ -703,7 +752,7 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 	free(input);
 	free(lines_);
 
-	return had_err ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+	return had_err ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
 
@@ -711,7 +760,7 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	setlocale(LC_ALL, "");
 	// char * locale = setlocale(LC_ALL, "C.utf8");
 	// if (strcmp(locale, "C.utf8") != 0) {
-	// 	return AOC_EXIT_SOFTWARE_FAIL;
+	// 	return AOC_EX_SOFTWARE_FAIL;
 	// }
 
 	FILE * file;
@@ -723,7 +772,7 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	fclose(file);
 	if (!input) {
 		perror("Error while parsing input");
-		return AOC_EXIT_IO_ERROR;
+		return AOC_EX_IO_ERROR;
 	}
 
 	aoc_err_t err = { 0 };
@@ -733,7 +782,7 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	if (print_err(err)) {
 		free_err_msg(err);
 		free(input);
-		return AOC_EXIT_DATA_ERR;
+		return AOC_EX_DATA_ERR;
 	}
 
 	bool had_err = false;
@@ -751,7 +800,7 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	free(input);
 	free(matrix.ws);
 
-	return had_err ? AOC_EXIT_SOFTWARE_FAIL : EXIT_SUCCESS;
+	return had_err ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
 

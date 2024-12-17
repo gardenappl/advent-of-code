@@ -10,53 +10,88 @@
 #include <string.h>
 
 // See sysexits.h
-#define AOC_EXIT_USAGE 64
-#define AOC_EXIT_DATA_ERR 65
-#define AOC_EXIT_NO_INPUT 66
-#define AOC_EXIT_SOFTWARE_FAIL 70
-#define AOC_EXIT_IO_ERROR 74
+// used as exception codes, and as program exit codes
+#define AOC_EX_USAGE 64
+#define AOC_EX_DATA_ERR 65
+#define AOC_EX_NO_INPUT 66
+#define AOC_EX_SOFTWARE_FAIL 70
+#define AOC_EX_IO_ERROR 74
 
-// Deprecated since day 7
-#define AOC_MSG_SIZE 100
+#define AOC_MSG_INVALID_FILE "invalid file"
+#define AOC_MSG_INVALID_MATRIX "invalid matrix"
+#define AOC_MSG_IO_ERROR "i/o error"
 
-#define AOC_INVALID_FILE "invalid file"
-#define AOC_INVALID_MATRIX "invalid matrix"
+
+#define AOC_STR2(x) #x
+#define AOC_STR(x) AOC_STR2(x)
 
 
 /*
  * Error handling
  */
 
-typedef struct aoc_err aoc_err_t;
+typedef struct aoc_ex aoc_err_t;
+typedef struct aoc_ex * aoc_ex_t;
 
 /**
- * Return true and initialize error struct, if errno is non-zero
+ * @deprecated	Since day 16. Use aoc_throw instead
  * @param[out]	err
- * @param	err_msg Error message string, which won't need to be free()d
+ * @param	err_msg  Error message string, which won't need to be free()d
  */
 bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg);
 
 /**
- * Return true and initialize error struct, if errno is non-zero
- * @param[out]	err
- * @param	err_msg_buf  Error message string, which WILL be free()d
- */
-bool aoc_err_if_errno_msg_buf(aoc_err_t * err, char * err_msg_buf);
-
-/**
+ * @deprecated	Since day 16. Use aoc_throw instead
  * @param[out]	err
  * @param	err_msg  Error message string, which won't need to be free()d
  */
 void aoc_err(aoc_err_t * err, char const * err_msg);
 
-/**
- * @param[out]	err
- * @param	err_msg_buf  Error message string, which WILL be free()d
- */
-void aoc_err_msg_buf(aoc_err_t * err, char * err_msg_buf);
 
+/**
+ * @deprecated	Since day 16. With the new aoc_throw API, you can simply check if *e != NULL
+ */
 bool aoc_is_err(aoc_err_t * err);
 
+
+/**
+ * Exception handling.
+ * Sets e to an error, using a string literal as an error message.
+ * Uses the AOC_EX_SOFTWARE_FAIL error code.
+ * The caller should clean up after themselves and return.
+ */
+#define aoc_throw_fail(e, msg)  aoc_throw(e, AOC_EX_SOFTWARE_FAIL, msg)
+
+/**
+ * Exception handling.
+ * Sets e to an error, using a string literal as an error message.
+ * The error code must be a non-zero value, should be one of AOC_EX_* codes.
+ * The caller should clean up after themselves and return.
+ */
+#define aoc_throw(e, code, msg)  aoc_throw_(e, code, __FILE__ ":" AOC_STR(__LINE__) ": " msg)
+
+void aoc_throw_(aoc_ex_t * e, int code, char const * msg);
+
+/**
+ * For backwards compatibility.
+ * Used for CALLING functions that only take singular pointer.
+ * MUST be called BEFORE calling a function that accepts aoc_err_t *
+ */
+aoc_err_t * aoc_ex_to_err(aoc_ex_t * e);
+
+/**
+ * For backwards compatibility.
+ * Used for CALLING functions that only take singular pointer.
+ * MUST be called AFTER calling a function that accepts aoc_err_t *
+ */
+bool aoc_throw_on_err(aoc_ex_t * e, aoc_err_t * err);
+
+/**
+ * For backwards compatibility.
+ * Used FROM functions that only take singular pointer to aoc_err.
+ * MUST be called AFTER calling a function that accepts aoc_ex_t * t
+ */
+bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e);
 
 
 /*
@@ -124,7 +159,8 @@ size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * to
  * @deprecated	Since day 7. It was a bad idea to mutate the buf, only because I
  * @deprecated	thought the stdlib tokenizer may have been convenient.
  * @deprecated	Also I should've added a _t suffix.
- * @deprecated	Conveniently this makes it easy to define a replacement type.
+ * @deprecated	Conveniently this makes it easy to define a replacement type, if I decide to do that.
+ * @deprecated	Current alternative is just aoc_numbers_line_parse and aoc_numbers_line_estimate_size
  */
 typedef struct {
 	char * buf;
@@ -140,20 +176,27 @@ typedef struct {
  * @deprecated	Since day 7.
  */
 void aoc_numbers_line_parse_new(char * s, aoc_numbers_line * num_line, char delimiter);
+
 /**
  * @deprecated	Since day 7.
  */
 void aoc_numbers_line_free(aoc_numbers_line num_line);
+
 /**
  * @return	Estimated buffer size for aoc_numbers_line_parse
  */
 size_t aoc_numbers_line_estimate_size(size_t longest_line_size);
+
 /**
  * @return	Amount of numbers successfully parsed to nums
  */
 size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size);
 
-char32_t aoc_c32_get(char const * s, char const ** s_end, mbstate_t * state, aoc_err_t * err);
+/**
+ * Get next char32_t in multibyte string s. Interface similar to strtol and friends.
+ */
+char32_t aoc_c32_get(char const * s, char const ** s_end, mbstate_t * state, aoc_ex_t * e);
+
 size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err);
 
 /**
@@ -166,6 +209,19 @@ void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
  * Matrix helpers
  */
 
+
+extern size_t aoc_sq8_x_diffs[8];
+extern size_t aoc_sq8_y_diffs[8];
+extern size_t aoc_cross4_x_diffs[4];
+extern size_t aoc_cross4_y_diffs[4];
+
+typedef enum { AOC_DIR4_UP, AOC_DIR4_RIGHT, AOC_DIR4_DOWN, AOC_DIR4_LEFT } aoc_dir4_t;
+
+extern size_t aoc_dir4_x_diffs[4];
+extern size_t aoc_dir4_y_diffs[4];
+extern char aoc_dir4_chars[4];
+
+
 /**
  * @deprecated	Since day 8. Use aoc_c32_2d_t instead if you want convenience and Unicode support.
  * @deprecated	aoc_matrix_t is neither convenient (due to having extraneous '\0' bytes at the end of each line)
@@ -176,24 +232,6 @@ typedef struct {
 	size_t width;
 	size_t height;
 } aoc_matrix_t;
-
-
-extern size_t aoc_sq8_x_diffs[8];
-extern size_t aoc_sq8_y_diffs[8];
-extern size_t aoc_cross4_x_diffs[4];
-extern size_t aoc_cross4_y_diffs[4];
-/**
- * Up, right, down, left
- */
-extern size_t aoc_dir4_x_diffs[4];
-/**
- * Up, right, down, left
- */
-extern size_t aoc_dir4_y_diffs[4];
-/**
- * Up, right, down, left
- */
-extern char aoc_dir4_chars[4];
 
 
 /**
@@ -230,7 +268,7 @@ inline void aoc_matrix_copy_data(aoc_matrix_t src, aoc_matrix_t const * dest) {
 
 
 /**
- * Unline aoc_matrix_t, doesn't have zero-delimiters between 'lines'
+ * Unline aoc_matrix_t, doesn't have zero-delimiters between 'lines'. And handles Unicode, yay?
  */
 typedef struct {
 	char32_t * ws;
@@ -246,6 +284,7 @@ inline char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
 inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c) {
 	matrix.ws[aoc_index_2d(matrix.width, x, y)] = c;
 }
+void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e);
 
 
 
@@ -279,7 +318,15 @@ inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool 
 inline void aoc_bit_array_reset(aoc_bit_array_t bit_array) {
 	memset(bit_array.data, 0, aoc_div_ceil(bit_array.bits_count, CHAR_BIT));
 }
+
+/**
+ * @deprecated	Renamed to aoc_bit_array_2d_printf,
+ * @deprecated  to be more consistent with standard C library
+ * @deprecated  and to allow exception handling.
+ */
 void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file);
+
+void aoc_bit_array_2d_printf(aoc_bit_array_t bit_array, size_t width, char false_c, char true_c, FILE * file, aoc_ex_t e);
 
 
 
@@ -287,14 +334,17 @@ void aoc_bit_array_2d_print(aoc_bit_array_t bit_array, size_t width, char false_
  * Main function boilerplate
  */
 
+// Deprecated since day 7
+#define AOC_MSG_SIZE 100
+
 /**
- * \deprecated Since day 7
+ * @deprecated Since day 7
  */
 int aoc_main(int argc, char * argv[], 
 		char * (*solve1)(FILE *), 
 		char * (*solve2)(FILE *));
 /**
- * \deprecated Since day 7
+ * @deprecated Since day 7
  */
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
