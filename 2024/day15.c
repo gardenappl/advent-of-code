@@ -173,13 +173,14 @@ static void move_robot_large_boxes(aoc_c32_2d_t warehouse, size_t * robot_x, siz
 
 
 static int64_t solve(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err) {
-	aoc_c32_2d_t warehouse = aoc_c32_2d_parse_bounded(lines, lines_n, '#', err);
-	if (aoc_is_err(err)) {
+	aoc_ex_t e = NULL;
+	aoc_c32_2d_t warehouse = aoc_c32_2d_parse_bounded(lines, lines_n, '#', &e);
+	if (aoc_err_if_ex(err, &e)) {
 		return -1;
 	}
 
-	aoc_ex_t e = NULL;
 	if (part == 1) {
+		e = NULL;
 		aoc_c32_2d_fprint(warehouse, stderr, &e);
 		if (aoc_err_if_ex(err, &e)) {
 			goto clean_warehouse;

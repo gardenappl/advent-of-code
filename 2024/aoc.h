@@ -20,6 +20,7 @@
 #define AOC_MSG_INVALID_FILE "invalid file"
 #define AOC_MSG_INVALID_MATRIX "invalid matrix"
 #define AOC_MSG_IO_ERROR "i/o error"
+#define AOC_MSG_OUT_OF_MEM "out of memory"
 
 
 #define AOC_STR2(x) #x
@@ -72,24 +73,12 @@ bool aoc_is_err(aoc_err_t * err);
 
 void aoc_throw_(aoc_ex_t * e, int code, char const * msg);
 
-/**
- * For backwards compatibility.
- * Used for CALLING functions that only take singular pointer.
- * MUST be called BEFORE calling a function that accepts aoc_err_t *
- */
-aoc_err_t * aoc_ex_to_err(aoc_ex_t * e);
 
 /**
+ * @deprecated	Since day 16.
  * For backwards compatibility.
- * Used for CALLING functions that only take singular pointer.
- * MUST be called AFTER calling a function that accepts aoc_err_t *
- */
-bool aoc_throw_on_err(aoc_ex_t * e, aoc_err_t * err);
-
-/**
- * For backwards compatibility.
- * Used FROM functions that only take singular pointer to aoc_err.
- * MUST be called AFTER calling a function that accepts aoc_ex_t * t
+ * Used by functions that only take singular pointer aka aoc_err_t *
+ * MUST be called AFTER calling a function that accepts  aoc_ex_t *
  */
 bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e);
 
@@ -197,12 +186,19 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
  */
 char32_t aoc_c32_get(char const * s, char const ** s_end, mbstate_t * state, aoc_ex_t * e);
 
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Currently no replacement, because I'm lazy.
+ */
 size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err);
 
 /**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Currently no replacement, because I'm lazy.
  * @param	str	String array of size at least MB_CUR_MAX + 1 (or MB_LEN_MAX + 1)
  */
 void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
+
 
 
 /*
@@ -276,8 +272,12 @@ typedef struct {
 	int32_t height;
 } aoc_c32_2d_t;
 
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Currently no replacement, because I'm lazy.
+ */
 aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err);
-aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_err_t * err);
+aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_ex_t * err);
 inline char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
 	return matrix.ws[aoc_index_2d(matrix.width, x, y)];
 }
@@ -298,13 +298,25 @@ typedef struct {
 	size_t bits_count;
 } aoc_bit_array_t;
 
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Use aoc_bit_array_new instead.
+ */
 aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err);
+aoc_bit_array_t aoc_bit_array_new(size_t bits_count, aoc_ex_t * err);
+
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Currently no replacement, because I'm lazy.
+ */
 aoc_bit_array_t aoc_bit_array_copy(aoc_bit_array_t bit_array, aoc_err_t * err);
+
 inline bool aoc_bit_array_get(aoc_bit_array_t bit_array, size_t bit_index) {
 	size_t char_index = bit_index / CHAR_BIT;
 	size_t bit_offset = bit_index % CHAR_BIT;
 	return bit_array.data[char_index] & (1 << bit_offset);
 }
+
 inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool b) {
 	size_t char_index = bit_index / CHAR_BIT;
 	size_t bit_offset = bit_index % CHAR_BIT;
@@ -315,6 +327,7 @@ inline void aoc_bit_array_set(aoc_bit_array_t bit_array, size_t bit_index, bool 
 		c &= ~(1 << bit_offset);
 	bit_array.data[char_index] = c;
 }
+
 inline void aoc_bit_array_reset(aoc_bit_array_t bit_array) {
 	memset(bit_array.data, 0, aoc_div_ceil(bit_array.bits_count, CHAR_BIT));
 }
@@ -348,11 +361,27 @@ int aoc_main(int argc, char * argv[],
  */
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
-typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
-typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err);
+
+typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_ex_t * e);
+
+typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_ex_t * e);
 
 
-int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
-int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve);
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Currently no replacement, because I'm lazy.
+ */
+int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, 
+		int64_t (*solve)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err));
+
+/**
+ * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Use aoc_main_c32_2d instead.
+ */
+int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, 
+		int64_t (*solve)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err));
+
+
+int aoc_main_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve);
 
 #endif /* end of include guard: AOC_H */

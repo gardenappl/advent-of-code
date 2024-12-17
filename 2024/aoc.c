@@ -25,11 +25,17 @@ struct aoc_ex {
 	char * error_msg;
 };
 
-typedef struct aoc_err aoc_err_;
-
 static void free_err_msg(aoc_err_t err) {
 	if (err.error_msg && !err.error_msg_const)
 		free(err.error_msg);
+}
+
+static void free_ex(struct aoc_ex ** e) {
+	aoc_ex_t exception = *e;
+	if (!exception)
+		return;
+	free_err_msg(*exception);
+	free(exception);
 }
 
 bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg) {
@@ -56,18 +62,18 @@ bool aoc_is_err(aoc_err_t * err) {
 }
 
 
-static bool print_err(aoc_err_t err) {
-	if (err.code == EXIT_SUCCESS)
+static bool print_ex(struct aoc_ex * exception) {
+	if (!exception || exception->code == EXIT_SUCCESS)
 		return false;
-	if (err.check_errno) {
-		perror(err.error_msg);
+	if (exception->check_errno) {
+		perror(exception->error_msg);
 	} else {
-		fputs(err.error_msg, stderr);
+		fputs(exception->error_msg, stderr);
 	}
 	return true;
 }
 
-struct aoc_ex * make_ex_if_needed(struct aoc_ex ** e, int exit_code) {
+static struct aoc_ex * make_ex_if_needed(struct aoc_ex ** e, int exit_code) {
 	struct aoc_ex * exception = *e;
 	if (!exception)
 		exception = calloc(1, sizeof(struct aoc_ex));
@@ -77,12 +83,12 @@ struct aoc_ex * make_ex_if_needed(struct aoc_ex ** e, int exit_code) {
 }
 
 void aoc_throw_(struct aoc_ex ** e, int code, char const * msg) {
-	fprintf(stderr, "'%s' %i %p\n", msg, code, e);
-	// *e = calloc(1, sizeof(struct aoc_ex));
-	// struct aoc_ex * exception = make_ex_if_needed(e, code);
-	// exception->code = code;
-	// exception->error_msg = (char *)msg;
-	// exception->error_msg_const = true;
+	// fprintf(stderr, "'%s' %i %p\n", msg, code, e);
+	struct aoc_ex * exception = make_ex_if_needed(e, code);
+	exception->code = code;
+	exception->error_msg = (char *)msg;
+	exception->error_msg_const = true;
+	*e = exception;
 }
 
 aoc_err_t * aoc_ex_to_err(struct aoc_ex ** e) {
@@ -320,7 +326,7 @@ size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbsta
 	char32_t * c32_out = ws_out ? ws_out : &c32;
 	while (n == NULL || *n > 1) {
 		*c32_out = aoc_c32_get(*s_in, s_in, state, &err);
-		if (err)
+		if (aoc_is_err(err))
 			return 0;
 
 		if (*c32_out == U'\n')
@@ -479,11 +485,11 @@ cleanup_matrix:
 }
 
 
-aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_err_t * err) {
+aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_ex_t * e) {
 	aoc_c32_2d_t matrix = { 0 };
 
 	if (lines_n == 0) {
-		aoc_err(err, AOC_MSG_INVALID_FILE);
+		aoc_throw_fail(e, AOC_MSG_INVALID_FILE);
 		return matrix;
 	}
 	char const * line = lines[0];
@@ -492,14 +498,14 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	char c;
 	while ((c = *line)) {
 		if (c != boundary) {
-			aoc_err(err, AOC_MSG_INVALID_MATRIX " (first line)");
+			aoc_throw_fail(e, AOC_MSG_INVALID_MATRIX);
 			return matrix;
 		}
 		++matrix.width;
 		++line;
 	}
 	if (matrix.width == 0) {
-		aoc_err(err, AOC_MSG_INVALID_MATRIX " (empty)");
+		aoc_throw_fail(e, AOC_MSG_INVALID_MATRIX);
 		return matrix;
 	}
 
@@ -516,7 +522,7 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	
 	matrix.ws = calloc(matrix.width * matrix.height, sizeof(char32_t));
 	if (!matrix.ws) {
-		aoc_err(err, "out of memory");
+		aoc_throw_fail(e, AOC_MSG_OUT_OF_MEM);
 		return matrix;
 	}
 
@@ -525,7 +531,7 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	char boundary_c32_parse[2] = { boundary, '\0' };
 	char32_t boundary_c32;
 	if (mbrtoc32(&boundary_c32, boundary_c32_parse, 2, &state) != 1) {
-		aoc_err(err, "could not parse bounary char as char32_t?");
+		aoc_throw_fail(e, "could not parse bounary char as char32_t?");
 		goto undo_matrix;
 	}
 
@@ -535,20 +541,19 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 		state = (mbstate_t){ 0 };
 
 		for (size_t x = 0; x < matrix.width; ++x) {
-			struct aoc_ex * e = NULL;
-			char32_t c32 = aoc_c32_get(line, &line, &state, &e);
-			if (aoc_err_if_ex(err, &e))
+			char32_t c32 = aoc_c32_get(line, &line, &state, e);
+			if (*e)
 				goto undo_matrix;
 
 			if (c32 == U'\0') {
-				aoc_err(err, AOC_MSG_INVALID_MATRIX " (line too small)");
+				aoc_throw_fail(e, AOC_MSG_INVALID_MATRIX);
 				goto undo_matrix;
 			}
 			matrix.ws[matrix_i] = c32;
 			++matrix_i;
 		}
 		if (matrix.ws[matrix_i - 1] != boundary_c32) {
-			aoc_err(err, AOC_MSG_INVALID_MATRIX " (line doesn't end with boundary)");
+			aoc_throw_fail(e, AOC_MSG_INVALID_MATRIX);
 			goto undo_matrix;
 		}
 	}
@@ -556,7 +561,7 @@ aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n
 	line = lines[matrix.height - 1];
 	while ((c = *line)) {
 		if (c != '#') {
-			aoc_err(err, AOC_MSG_INVALID_MATRIX " (invalid final line)");
+			aoc_throw_fail(e, AOC_MSG_INVALID_MATRIX);
 			return matrix;
 		}
 		++line;
@@ -598,13 +603,17 @@ void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e) {
  */
 
 
-aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err) {
+aoc_bit_array_t aoc_bit_array_make(size_t bits_count, struct aoc_ex * err) {
+	return aoc_bit_array_new(bits_count, &err);
+}
+
+aoc_bit_array_t aoc_bit_array_new(size_t bits_count, struct aoc_ex ** e) {
 	aoc_bit_array_t bit_array = {
 		.data = (char *)calloc(aoc_div_ceil(bits_count, CHAR_BIT), sizeof(char)),
 		.bits_count = bits_count
 	};
 	if (!bit_array.data) {
-		aoc_err(err, "Could not allocate bit array");
+		aoc_throw_fail(e, AOC_MSG_OUT_OF_MEM);
 	}
 	return bit_array;
 }
@@ -710,8 +719,29 @@ int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(
 	return fail ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
+char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
+	char * s = aoc_read_file(input);
+	if (!s) return NULL;
 
-int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve) {
+	aoc_matrix_t matrix;
+	bool err_ = aoc_matrix_init(s, &matrix);
+	if (err_) {
+		free((void *)s);
+		return NULL;
+	}
+	int64_t result = solve_for_matrix(matrix);
+	free((void *)s);
+
+	char * buf = malloc(AOC_MSG_SIZE);
+	snprintf(buf, AOC_MSG_SIZE, "%" PRId64, result);
+	return buf;
+}
+
+
+typedef int64_t (*aoc_solver_lines_t_old)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
+
+
+static int aoc_main_parse_lines_(int argc, char ** argv, int32_t parts_implemented, void * solve_, bool old_exception_handler) {
 	FILE * file;
 	int exit_code = parse_args_and_open(argc, argv, &file);
 	if (exit_code != EXIT_SUCCESS)
@@ -738,16 +768,29 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 
 	bool had_err = false;
 	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		aoc_err_t err = { 0 };
-		int64_t result = solve(lines, lines_n, longest_line_size, part, &err);
+		aoc_ex_t * ex;
+		int64_t result;
 
-		if (print_err(err)) {
-			free_err_msg(err);
+		if (old_exception_handler) {
+			ex = calloc(1, sizeof(aoc_ex_t));
+
+			aoc_solver_lines_t_old solve = (aoc_solver_lines_t_old)solve_;
+			result = solve(lines, lines_n, longest_line_size, part, *ex);
+		} else {
+			ex = NULL;
+
+			aoc_solver_lines_t solve = (aoc_solver_lines_t)solve_;
+			result = solve(lines, lines_n, longest_line_size, part, ex);
+		}
+
+		if (*ex && print_ex(*ex)) {
 			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
 			had_err = true;
 		} else {
 			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
 		}
+		if (*ex)
+			free_ex(ex);
 	}
 	free(input);
 	free(lines_);
@@ -755,13 +798,16 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 	return had_err ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
+int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t_old solve) {
+	return aoc_main_parse_lines_(argc, argv, parts_implemented, solve, true);
+}
 
-int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve) {
+
+typedef int64_t (*aoc_solver_c32_2d_t_old)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err);
+
+
+int aoc_main_parse_c32_2d_(int argc, char ** argv, int32_t parts_implemented, void * solve_, bool old_exception_handler) {
 	setlocale(LC_ALL, "");
-	// char * locale = setlocale(LC_ALL, "C.utf8");
-	// if (strcmp(locale, "C.utf8") != 0) {
-	// 	return AOC_EX_SOFTWARE_FAIL;
-	// }
 
 	FILE * file;
 	int exit_code = parse_args_and_open(argc, argv, &file);
@@ -776,10 +822,9 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	}
 
 	aoc_err_t err = { 0 };
-
 	aoc_c32_2d_t matrix = aoc_c32_2d_parse(input, &err);
 
-	if (print_err(err)) {
+	if (print_ex(&err)) {
 		free_err_msg(err);
 		free(input);
 		return AOC_EX_DATA_ERR;
@@ -787,15 +832,29 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 
 	bool had_err = false;
 	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		int64_t result = solve(matrix, part, &err);
+		aoc_ex_t * ex;
+		int64_t result;
 
-		if (print_err(err)) {
-			free_err_msg(err);
+		if (old_exception_handler) {
+			ex = calloc(1, sizeof(aoc_ex_t));
+
+			aoc_solver_c32_2d_t_old solve = (aoc_solver_c32_2d_t_old)solve_;
+			result = solve(matrix, part, *ex);
+		} else {
+			ex = NULL;
+			
+			aoc_solver_c32_2d_t solve = (aoc_solver_c32_2d_t)solve_;
+			result = solve(matrix, part, ex);
+		}
+
+		if (*ex && print_ex(*ex)) {
 			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
 			had_err = true;
 		} else {
 			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
 		}
+		if (*ex)
+			free_ex(ex);
 	}
 	free(input);
 	free(matrix.ws);
@@ -803,22 +862,6 @@ int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc
 	return had_err ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
 }
 
-
-char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
-	char * s = aoc_read_file(input);
-	if (!s) return NULL;
-
-	aoc_matrix_t matrix;
-	bool err_ = aoc_matrix_init(s, &matrix);
-	if (err_) {
-		free((void *)s);
-		return NULL;
-	}
-	int64_t result = solve_for_matrix(matrix);
-	free((void *)s);
-
-	char * buf = malloc(AOC_MSG_SIZE);
-	snprintf(buf, AOC_MSG_SIZE, "%" PRId64, result);
-	return buf;
+int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t_old solve) {
+	return aoc_main_parse_c32_2d_(argc, argv, parts_implemented, solve, true);
 }
-
