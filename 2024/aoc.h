@@ -19,6 +19,8 @@
 // Deprecated since day 7
 #define AOC_MSG_SIZE 100
 
+#define AOC_INVALID_FILE "invalid file"
+#define AOC_INVALID_MATRIX "invalid matrix"
 
 
 /*
@@ -151,7 +153,7 @@ size_t aoc_numbers_line_estimate_size(size_t longest_line_size);
  */
 size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size);
 
-
+char32_t aoc_c32_get(char const * s, char const ** s_end, mbstate_t * state, aoc_err_t * err);
 size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err);
 
 /**
@@ -165,7 +167,9 @@ void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
  */
 
 /**
- * @deprecated	Since day 8. Use aoc_c32_2d_t instead.
+ * @deprecated	Since day 8. Use aoc_c32_2d_t instead if you want convenience and Unicode support.
+ * @deprecated	aoc_matrix_t is neither convenient (due to having extraneous '\0' bytes at the end of each line)
+ * @deprecated	nor does it handle multibyte strings.
  */
 typedef struct {
 	char * s;
@@ -235,6 +239,7 @@ typedef struct {
 } aoc_c32_2d_t;
 
 aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err);
+aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_err_t * err);
 inline char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y) {
 	return matrix.ws[aoc_index_2d(matrix.width, x, y)];
 }

@@ -265,41 +265,51 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 }
 
 
+char32_t aoc_c32_get(char const * str, char const ** str_end, mbstate_t * state, aoc_err_t * err) {
+	char32_t c;
+	size_t rs = mbrtoc32(&c, str, MB_LEN_MAX, state);
+	switch (rs) {
+		case (size_t)-1:
+			aoc_err_if_errno(err, "encoding error");
+			return c;
+		case (size_t)-2:
+			aoc_err_if_errno(err, "should not need more than MB_LEN_MAX to parse mb string");
+			return c;
+		case (size_t)-3:
+			aoc_err(err, "32-bit surrogate pair? shouldn't happen, unless it's not UTF-32...");
+			return c;
+	}
+	if (str_end)
+		*str_end += rs;
+	return c;			
+}
+
+
 size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err) {
 	size_t len = 0;
 
 	char32_t c32;
 	char32_t * c32_out = ws_out ? ws_out : &c32;
 	while (n == NULL || *n > 1) {
-		size_t rc = mbrtoc32(c32_out, *s_in, MB_CUR_MAX, state);
-		switch (rc) {
-			case (size_t)-1:
-				aoc_err_if_errno(err, "Encoding error!");
-				return rc;
-			case (size_t)-2:
-				// more than MB_CUR_MAX bytes needed? Weird but I guess I can handle it
-				continue;
-			case (size_t)-3:
-				aoc_err(err, "32-bit surrogate pair? Shouldn't happen, unless it's not UTF-32...");
-				return rc;
-			case 0:
-				goto end_line;
-			default:
-				*s_in += rc;
-				if (*c32_out == U'\n')
-					goto end_line;
-				if (ws_out) {
-					++c32_out;
-				}
-				++len;
-				if (n)
-					--(*n);
-		}
+		*c32_out = aoc_c32_get(*s_in, s_in, state, err);
+		if (aoc_is_err(err))
+			return 0;
+
+		if (*c32_out == U'\n')
+			*c32_out = U'\0';
+		if (*c32_out == U'\0')
+			return len;
+
+		if (ws_out)
+			++c32_out;
+		++len;
+		if (n)
+			--(*n);
 	}
-end_line:
-	if (ws_out) {
+	// Truncate if at end of buffer
+	if (ws_out)
 		*c32_out = U'\0';
-	}
+
 	return len;
 }
 
@@ -439,6 +449,97 @@ cleanup_matrix:
 	free(matrix.ws);
 	return matrix;
 }
+
+
+aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_err_t * err) {
+	aoc_c32_2d_t matrix = { 0 };
+
+	if (lines_n == 0) {
+		aoc_err(err, AOC_INVALID_FILE);
+		return matrix;
+	}
+	char const * line = lines[0];
+
+	// Parse first line, shouldn't have anything other than basic 8-bit chars
+	char c;
+	while ((c = *line)) {
+		if (c != boundary) {
+			aoc_err(err, AOC_INVALID_MATRIX " (first line)");
+			return matrix;
+		}
+		++matrix.width;
+		++line;
+	}
+	if (matrix.width == 0) {
+		aoc_err(err, AOC_INVALID_MATRIX " (empty)");
+		return matrix;
+	}
+
+	// First characters should also be just 8-bit chars
+	matrix.height = 1;
+	for (size_t i = 1; i < lines_n; ++i) {
+		line = lines[i];
+
+		if (line[0] == boundary)
+			++matrix.height;
+		else
+			break;
+	}
+	
+	matrix.ws = calloc(matrix.width * matrix.height, sizeof(char32_t));
+	if (!matrix.ws) {
+		aoc_err(err, "out of memory");
+		return matrix;
+	}
+
+	mbstate_t state = { 0 };
+
+	char boundary_c32_parse[2] = { boundary, '\0' };
+	char32_t boundary_c32;
+	if (mbrtoc32(&boundary_c32, boundary_c32_parse, 2, &state) != 1) {
+		aoc_err(err, "could not parse bounary char as char32_t?");
+		goto undo_matrix;
+	}
+
+	size_t matrix_i = 0;
+	for (size_t y = 0; y < matrix.height; ++y) {
+		line = lines[y];
+		state = (mbstate_t){ 0 };
+
+		for (size_t x = 0; x < matrix.width; ++x) {
+			char32_t c32 = aoc_c32_get(line, &line, &state, err);
+			if (aoc_is_err(err))
+				goto undo_matrix;
+
+			if (c32 == U'\0') {
+				aoc_err(err, AOC_INVALID_MATRIX " (line too small)");
+				goto undo_matrix;
+			}
+			matrix.ws[matrix_i] = c32;
+			++matrix_i;
+		}
+		if (matrix.ws[matrix_i - 1] != boundary_c32) {
+			aoc_err(err, AOC_INVALID_MATRIX " (line doesn't end with boundary)");
+			goto undo_matrix;
+		}
+	}
+	// Parse first line, shouldn't have anything other than basic 8-bit chars
+	line = lines[matrix.height - 1];
+	while ((c = *line)) {
+		if (c != '#') {
+			aoc_err(err, AOC_INVALID_MATRIX " (invalid final line)");
+			return matrix;
+		}
+		++line;
+	}
+
+	return matrix;
+
+undo_matrix:
+	free(matrix.ws);
+	return matrix;
+}
+
 extern char32_t aoc_c32_2d_get(aoc_c32_2d_t matrix, size_t x, size_t y);
 extern void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c);
 
