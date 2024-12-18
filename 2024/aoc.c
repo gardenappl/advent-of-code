@@ -30,12 +30,11 @@ static void free_err_msg(aoc_err_t err) {
 		free(err.error_msg);
 }
 
-static void free_ex(struct aoc_ex ** e) {
-	aoc_ex_t exception = *e;
-	if (!exception)
+static void free_ex(struct aoc_ex * ex) {
+	if (!ex)
 		return;
-	free_err_msg(*exception);
-	free(exception);
+	free_err_msg(*ex);
+	free(ex);
 }
 
 bool aoc_err_if_errno(aoc_err_t * err, char const * err_msg) {
@@ -813,22 +812,22 @@ static int aoc_main_parse_lines_(int argc, char ** argv, int32_t parts_implement
 
 	bool had_err = false;
 	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		aoc_ex_t * ex;
+		struct aoc_ex * ex;
 		int64_t result;
 
 		if (old_exception_handler) {
 			ex = calloc(1, sizeof(aoc_ex_t));
 
 			aoc_solver_lines_t_old solve = (aoc_solver_lines_t_old)solve_;
-			result = solve(lines, lines_n, longest_line_size, part, *ex);
+			result = solve(lines, lines_n, longest_line_size, part, ex);
 		} else {
 			ex = NULL;
 
 			aoc_solver_lines_t solve = (aoc_solver_lines_t)solve_;
-			result = solve(lines, lines_n, longest_line_size, part, ex);
+			result = solve(lines, lines_n, longest_line_size, part, &ex);
 		}
 
-		if (ex && print_ex(*ex)) {
+		if (ex && print_ex(ex)) {
 			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
 			had_err = true;
 		} else {
@@ -877,22 +876,22 @@ int aoc_main_parse_c32_2d_(int argc, char ** argv, int32_t parts_implemented, vo
 
 	bool had_err = false;
 	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		aoc_ex_t * ex;
+		struct aoc_ex * ex;
 		int64_t result;
 
 		if (old_exception_handler) {
-			ex = calloc(1, sizeof(aoc_ex_t));
+			ex = calloc(1, sizeof(struct aoc_ex));
 
 			aoc_solver_c32_2d_t_old solve = (aoc_solver_c32_2d_t_old)solve_;
-			result = solve(matrix, part, *ex);
+			result = solve(matrix, part, ex);
 		} else {
 			ex = NULL;
 			
 			aoc_solver_c32_2d_t solve = (aoc_solver_c32_2d_t)solve_;
-			result = solve(matrix, part, ex);
+			result = solve(matrix, part, &ex);
 		}
 
-		if (ex && print_ex(*ex)) {
+		if (ex && print_ex(ex)) {
 			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
 			had_err = true;
 		} else {
