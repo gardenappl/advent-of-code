@@ -295,10 +295,12 @@ size_t aoc_c32_split(char * s, char32_t delimiter, char ** substrings, size_t * 
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model). 
- * @deprecated	Currently no replacement, because I'm lazy.
+ * @deprecated	Since it's mostly only used for debugging, you can use aoc_c32_fprint instead.
  * @param	str	String array of size at least MB_CUR_MAX + 1 (or MB_LEN_MAX + 1)
  */
 void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
+
+void aoc_c32_fprint(char32_t c, FILE * file, aoc_ex_t * e);
 
 
 

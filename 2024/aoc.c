@@ -417,6 +417,7 @@ size_t aoc_c32_split(char * s, char32_t delimiter, char ** substrings, size_t * 
 		while (*c_next) {
 			c = c_next;
 			char32_t c32 = aoc_c32_get(c, (char const **)&c_next, &next_state, e);
+			
 			if (*e)
 				return i;
 			if (c32 == delimiter) {
@@ -457,6 +458,17 @@ void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err) {
 			str[written] = '\0';
 			return;
 	}
+}
+
+void aoc_c32_fprint(char32_t c, FILE * file, aoc_ex_t * e) {
+	char c_str[MB_LEN_MAX];
+	aoc_err_t * err = aoc_ex_to_err(e);
+	aoc_c32_to_str(c, c_str, err);
+	if (err_then_aoc_throw(e, err))
+		return;
+	fputs(c_str, file);
+	if (ferror(file))
+		aoc_throw(e, AOC_EX_IO_ERROR, AOC_MSG_IO_ERROR);
 }
 
 
@@ -796,68 +808,10 @@ void aoc_bit_array_2d_fprint(aoc_bit_array_t bit_array, size_t width, char false
 
 
 /*
+ *
  * Main function boilerplate
+ *
  */
-
-static int parse_args_and_open(int argc, char ** argv, FILE ** input_file) {
-	if (argc < 2) {
-		char * prog_name = "PROGRAM_NAME";
-		if (argc > 0)
-			prog_name = argv[0];
-		fprintf(stderr, "Usage: %s INPUT_FILE\n", prog_name);
-		*input_file = NULL;
-		return AOC_EX_USAGE;
-	}
-	*input_file = fopen(argv[1], "r");
-	if (!(*input_file)) {
-		perror("Could not open file");
-		return AOC_EX_NO_INPUT;
-	}
-	return EXIT_SUCCESS;
-}
-
-int aoc_main(int argc, char ** argv, char * (*solve1)(FILE *), char * (*solve2)(FILE *)) {
-	FILE * file;
-	int exit_code = parse_args_and_open(argc, argv, &file);
-	if (exit_code != EXIT_SUCCESS)
-		return exit_code;
-
-	bool fail = false;
-	char* result = solve1(file);
-	if (result) {
-		fprintf(stderr, "Part 1 success!\n");
-		puts(result);
-	} else if (ferror(file)) {
-		perror("File error");
-		return AOC_EX_IO_ERROR;
-	} else {
-		fprintf(stderr, "Part 1 fail!\n");
-		fail = true;
-	}
-
-	fseek(file, 0, SEEK_SET);
-	if (ferror(file)) {
-		perror("Could not seek?");
-		return AOC_EX_IO_ERROR;
-	}
-
-	if (solve2) {
-		result = solve2(file);
-		if (result) {
-			fprintf(stderr, "Part 2 success!\n");
-			puts(result);
-		} else if (ferror(file)) {
-			perror("File error");
-			return AOC_EX_IO_ERROR;
-		} else {
-			fprintf(stderr, "Part 2 fail!\n");
-			fail = true;
-		}
-	}
-
-	fclose(file);
-	return fail ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
-}
 
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
 	char * s = aoc_read_file(input);
@@ -878,41 +832,32 @@ char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix
 }
 
 
-int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve) {
-	setlocale(LC_ALL, "");
 
-	FILE * file;
-	int exit_code = parse_args_and_open(argc, argv, &file);
-	if (exit_code != EXIT_SUCCESS)
-		return exit_code;
-
-	char * input = aoc_read_file(file);
-	if (!input) {
-		perror("Error while parsing input");
-		return AOC_EX_IO_ERROR;
+int aoc_main_(int argc, char ** argv, int parts_implemented, void * env,
+		void (*prepare)(void * env, FILE * file, char const * file_name, aoc_ex_t * e),
+		int64_t (*solve)(void * env, int part, aoc_ex_t * e),
+		void (*cleanup)(void * env)) {
+	if (argc < 2) {
+		char * prog_name = "PROGRAM_NAME";
+		if (argc > 0)
+			prog_name = argv[0];
+		fprintf(stderr, "Usage: %s INPUT_FILE\n", prog_name);
+		return AOC_EX_USAGE;
 	}
-	fclose(file);
+	char const * file_name = argv[1];
+	FILE * file = fopen(file_name, "r");
+	if (!file) {
+		perror("Could not open file");
+		return AOC_EX_NO_INPUT;
+	}
 
-	mbstate_t state = { 0 };
 	struct aoc_ex * ex = NULL;
-	size_t lines_n = aoc_c32_count(input, U'\n', &state, &ex) + 1;
-	if (print_ex(ex))
-		goto cleanup_input;
-
-	char ** lines_ = assert_calloc(lines_n, char *);
-	size_t * line_sizes_ = assert_calloc(lines_n, size_t);
-
-	// fprintf(stderr, "expecting %zu lines\n", lines_n);
-
-	lines_n = aoc_c32_split(input, U'\n', lines_, line_sizes_, lines_n, &ex);
+	prepare(env, file, file_name, &ex);
 	if (print_ex(ex))
 		goto cleanup;
 
-	char * const * lines = (char * const *)lines_;
-	size_t const * line_sizes = (size_t const *)line_sizes_;
-
-	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		int64_t result = solve(lines, lines_n, line_sizes, part, &ex);
+	for (int part = 1; part <= parts_implemented; ++part) {
+		int64_t result = solve(env, part, &ex);
 
 		if (print_ex(ex)) {
 			fprintf(stderr, "Part %" PRId32 " failure!\n", part);
@@ -921,124 +866,255 @@ int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver
 			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
 		}
 	}
-cleanup:
+	if (cleanup)
+		cleanup(env);
+cleanup:;
+	free(env);
+	int exit_code = ex ? ex->code : EXIT_SUCCESS;
 	free_ex(ex);
-	free(line_sizes_);
-	free(lines_);
-cleanup_input:
-	free(input);
-
-	return ex ? ex->code : EXIT_SUCCESS;
+	return exit_code;
 }
 
-typedef int64_t (*aoc_solver_lines_t_old)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
 
-int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t_old solve) {
-	FILE * file;
-	int exit_code = parse_args_and_open(argc, argv, &file);
-	if (exit_code != EXIT_SUCCESS)
-		return exit_code;
+
+typedef char * (*old_solver_file_t)(FILE * file);
+
+typedef struct {
+	char const * file_name;
+	old_solver_file_t solve1;
+	old_solver_file_t solve2;
+} file_env_t;
+
+
+static void file_prepare(void * env, FILE * file, char const * file_name, aoc_ex_t * e) {
+	file_env_t * file_env = (file_env_t *)env;
+	fclose(file);
+	file_env->file_name = file_name;
+}
+
+static int64_t file_solve(void * env, int part, aoc_ex_t * e) {
+	file_env_t * file_env = (file_env_t *)env;
+
+	FILE * file = fopen(file_env->file_name, "r");
+	char * result_s;
+	if (part == 1) {
+		result_s = file_env->solve1(file);
+	} else {
+		result_s = file_env->solve2(file);
+	}
+	fclose(file);
+	if (!result_s) {
+		aoc_throw_fail(e, "Fail!");
+		return -1;
+	}
+	int64_t result;
+	if (sscanf(result_s, "%" PRId64, &result) != 1) {
+		aoc_throw_fail(e, "Could not parse output!");
+		goto cleanup;
+	}
+cleanup:
+	free(result_s);
+	return result;
+}
+
+int aoc_main(int argc, char ** argv, old_solver_file_t solve1, old_solver_file_t solve2) {
+	file_env_t * file_env = assert_calloc(1, file_env_t);
+	file_env->solve1 = solve1;
+	file_env->solve2 = solve2;
+	return aoc_main_(argc, argv, solve2 ? 2 : 1, file_env,
+			file_prepare, file_solve, NULL);
+}
+
+
+typedef struct {
+	char * const * lines;
+	size_t lines_n;
+	size_t const * line_lengths;
+	aoc_solver_lines_t solve;
+} lines_env_t;
+
+
+static void lines_prepare(void * env, FILE * file, char const * file_name, aoc_ex_t * e) {
+	lines_env_t * lines_env = (lines_env_t *)env;
 
 	char * input = aoc_read_file(file);
 	fclose(file);
 	if (!input) {
-		perror("Error while parsing input");
-		return AOC_EX_IO_ERROR;
+		aoc_throw(e, AOC_EX_IO_ERROR, AOC_MSG_IO_ERROR);
+		return;
+	}
+
+	mbstate_t state = { 0 };
+	size_t lines_n = aoc_c32_count(input, U'\n', &state, e) + 1;
+	if (*e)
+		goto undo_input;
+
+	char ** lines = assert_calloc(lines_n, char *);
+	size_t * line_lengths = assert_calloc(lines_n, size_t);
+
+	// fprintf(stderr, "expecting %zu lines\n", lines_n);
+
+	lines_env->lines_n = aoc_c32_split(input, U'\n', lines, line_lengths, lines_n, e);
+	if (*e)
+		goto undo_lines;
+
+	lines_env->lines = (char * const *)lines;
+	lines_env->line_lengths = (size_t const *)line_lengths;
+
+	return;
+undo_lines:
+	free(lines);
+	free(line_lengths);
+undo_input:
+	free(input);
+}
+
+static int64_t lines_solve(void * env_, int part, aoc_ex_t * e) {
+	lines_env_t * env = (lines_env_t *)env_;
+	return env->solve(env->lines, env->lines_n, env->line_lengths, part, e);
+}
+
+static void lines_cleanup(void * env_) {
+	lines_env_t * env = (lines_env_t *)env_;
+	free((void *)env->lines);
+	free((void *)env->line_lengths);
+}
+
+int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve) {
+	setlocale(LC_ALL, "");
+
+	lines_env_t * env = assert_calloc(1, lines_env_t);
+	env->solve = solve;
+	return aoc_main_(argc, argv, parts_implemented, env,
+			lines_prepare, lines_solve, lines_cleanup);
+}
+
+
+
+typedef int64_t (*old_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
+
+typedef struct {
+	char const * const * lines;
+	size_t lines_n;
+	size_t longest_line_size;
+	old_solver_lines_t solve;
+} old_lines_env_t;
+
+
+static void old_lines_prepare(void * env_, FILE * file, char const * file_name, aoc_ex_t * e) {
+	old_lines_env_t * env = (old_lines_env_t *)env_;
+	char * input = aoc_read_file(file);
+	fclose(file);
+	if (!input) {
+		aoc_throw(e, AOC_EX_IO_ERROR, AOC_MSG_IO_ERROR);
+		return;
 	}
 
 	char ** lines_ = NULL;
 	size_t lines_buf_size;
 	size_t lines_n = aoc_tokenize(input, '\n', &lines_, &lines_buf_size);
-	char const * const * lines = (char const * const *)lines_;
+	env->lines = (char const * const *)lines_;
 
 	size_t longest_line_size = 0;
 	for (size_t i = 0; i < lines_n; ++i) {
-		size_t line_size = strlen(lines[i]);
+		size_t line_size = strlen(env->lines[i]);
 		if (line_size > longest_line_size)
 			longest_line_size = line_size;
 	}
+	env->lines_n = lines_n;
+	env->longest_line_size = longest_line_size;
+}
 
-	bool had_err = false;
-	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		struct aoc_ex ex = { 0 };
-		int64_t result = solve(lines, lines_n, longest_line_size, part, &ex);
-
-		if (print_ex(&ex)) {
-			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
-			had_err = true;
-		} else {
-			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
-		}
-		free_err_msg(ex);
+static int64_t old_lines_solve(void * env_, int part, aoc_ex_t * e) {
+	old_lines_env_t * env = (old_lines_env_t *)env_;
+	aoc_err_t * err = aoc_ex_to_err(e);
+	int64_t result = env->solve(env->lines, env->lines_n, env->longest_line_size, part, err);
+	if (err_then_aoc_throw(e, err)) {
+		return -1;
 	}
-	free(input);
-	free(lines_);
+	return result;
+}
 
-	return had_err ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
+static void old_lines_cleanup(void * env_) {
+	old_lines_env_t * env = (old_lines_env_t *)env_;
+	free((void *)env->lines);
+}
+
+int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, old_solver_lines_t solve) {
+	old_lines_env_t * env = assert_calloc(1, old_lines_env_t);
+	env->solve = solve;
+	return aoc_main_(argc, argv, parts_implemented, env,
+			old_lines_prepare, old_lines_solve, old_lines_cleanup);
 }
 
 
-typedef int64_t (*aoc_solver_c32_2d_t_old)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err);
 
-int aoc_main_c32_2d_(int argc, char ** argv, int32_t parts_implemented, void * solve_, bool old_exception_handler) {
-	setlocale(LC_ALL, "");
+typedef int64_t (*old_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_err_t * err);
 
-	FILE * file;
-	int exit_code = parse_args_and_open(argc, argv, &file);
-	if (exit_code != EXIT_SUCCESS)
-		return exit_code;
+typedef struct {
+	aoc_c32_2d_t matrix;
+	bool old;
+	union {
+		aoc_solver_c32_2d_t solve;
+		old_solver_c32_2d_t solve_old;
+	};
+} c32_2d_env_t;
 
+
+static void c32_2d_prepare(void * env_, FILE * file, char const * file_name, aoc_ex_t * e) {
+	c32_2d_env_t * env = (c32_2d_env_t *)env_;
 	char * input = aoc_read_file(file);
 	fclose(file);
 	if (!input) {
-		perror("Error while parsing input");
-		return AOC_EX_IO_ERROR;
+		aoc_throw(e, AOC_EX_IO_ERROR, AOC_MSG_IO_ERROR);
+		return;
 	}
 
-	aoc_err_t err = { 0 };
-	aoc_c32_2d_t matrix = aoc_c32_2d_parse(input, &err);
-
-	if (print_ex(&err)) {
-		free_err_msg(err);
-		free(input);
-		return AOC_EX_DATA_ERR;
+	aoc_err_t * err = aoc_ex_to_err(e);
+	env->matrix = aoc_c32_2d_parse(input, err);
+	if (err_then_aoc_throw(e, err)) {
+		goto cleanup_input;
 	}
-
-	struct aoc_ex * ex;
-	for (int32_t part = 1; part <= parts_implemented; ++part) {
-		int64_t result;
-
-		if (old_exception_handler) {
-			ex = calloc(1, sizeof(struct aoc_ex));
-
-			aoc_solver_c32_2d_t_old solve = (aoc_solver_c32_2d_t_old)solve_;
-			result = solve(matrix, part, ex);
-		} else {
-			ex = NULL;
-			
-			aoc_solver_c32_2d_t solve = (aoc_solver_c32_2d_t)solve_;
-			result = solve(matrix, part, &ex);
-		}
-
-		if (ex && print_ex(ex)) {
-			fprintf(stderr, " - Part %" PRId32 " failure!\n", part);
-			// had_err = true;
-		} else {
-			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
-		}
-		if (ex)
-			free_ex(ex);
-	}
+cleanup_input:
 	free(input);
-	free(matrix.ws);
+}
 
-	return aoc_is_err(ex) ? AOC_EX_SOFTWARE_FAIL : EXIT_SUCCESS;
+static int64_t c32_2d_solve(void * env_, int part, aoc_ex_t * e) {
+	c32_2d_env_t * env = (c32_2d_env_t *)env_;
+
+	int64_t result;
+	if (env->old) {
+		aoc_err_t * err = aoc_ex_to_err(e);
+		result = env->solve_old(env->matrix, part, err);
+		if (err_then_aoc_throw(e, err)) {
+			return -1;
+		}
+	} else {
+		result = env->solve(env->matrix, part, e);
+	}
+	return result;
+}
+
+static void c32_2d_cleanup(void * env_) {
+	c32_2d_env_t * env = (c32_2d_env_t *)env_;
+	free(env->matrix.ws);
 }
 
 int aoc_main_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t solve) {
-	return aoc_main_c32_2d_(argc, argv, parts_implemented, solve, false);
+	setlocale(LC_ALL, "");
+
+	c32_2d_env_t * env = assert_calloc(1, c32_2d_env_t);
+	env->solve = solve;
+	return aoc_main_(argc, argv, parts_implemented, env,
+			c32_2d_prepare, c32_2d_solve, c32_2d_cleanup);
 }
 
-int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, aoc_solver_c32_2d_t_old solve) {
-	return aoc_main_c32_2d_(argc, argv, parts_implemented, solve, true);
+int aoc_main_parse_c32_2d(int argc, char ** argv, int32_t parts_implemented, old_solver_c32_2d_t solve) {
+	setlocale(LC_ALL, "");
+
+	c32_2d_env_t * env = assert_calloc(1, c32_2d_env_t);
+	env->old = true;
+	env->solve_old = solve;
+	return aoc_main_(argc, argv, parts_implemented, env,
+			c32_2d_prepare, c32_2d_solve, c32_2d_cleanup);
 }
