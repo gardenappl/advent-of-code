@@ -1,6 +1,8 @@
 #ifndef AOC_H
 #define AOC_H
 
+#include <stdnoreturn.h>
+#include <assert.h>
 #include <uchar.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -24,16 +26,63 @@
 #define AOC_MSG_NO_WALL "field is missing wall"
 
 
+/**
+ * Turning non-string value of macro into string
+ * https://gcc.gnu.org/onlinedocs/gcc-3.4.3/cpp/Stringification.html
+ */
 #define AOC_STR2(x) #x
 #define AOC_STR(x) AOC_STR2(x)
 
+/**
+ * Overloading macro based on the number of arguments
+ * https://stackoverflow.com/a/11763277
+ * example use: #define FOO(...) GET_MACRO(__VA_ARGS__, FOO4, FOO3, FOO2)(__VA_ARGS__)
+ */
+#define GET_MACRO(_1,_2,_3,_4,NAME,...) NAME
+
+
 
 /*
+ *
  * Error handling
+ *
  */
 
-typedef struct aoc_ex aoc_err_t;
+#define assert_calloc(num, type) \
+	assert_calloc_(num, sizeof(type))
+
+noreturn inline void oom_abort() {
+	fputs(AOC_MSG_OUT_OF_MEM, stderr);
+	abort();
+}
+
+inline void * assert_calloc_(size_t num, size_t size) {
+	void * p = calloc(num, size);
+	if (!p)
+		oom_abort();
+	return p;
+}
+
+#define assert_malloc(num, type) \
+	assert_malloc_(num, sizeof(type))
+
+inline void * assert_malloc_(size_t num, size_t size) {
+	size_t size_total = num * size;
+	if (size_total / size != num)
+		oom_abort();
+	void * p = malloc(size_total);
+	if (!p)
+		oom_abort();
+	return p;
+}
+
+
 typedef struct aoc_ex * aoc_ex_t;
+/**
+ * @deprecated	Use aoc_ex_t * instead. 
+ * @deprecated	Double pointers are nicer, catching an exception is as easy as checking `!*e`!
+ */
+typedef struct aoc_ex aoc_err_t;
 
 /**
  * @deprecated	Since day 16. Use aoc_throw instead
@@ -62,7 +111,8 @@ bool aoc_is_err(aoc_err_t * err);
  * Uses the AOC_EX_SOFTWARE_FAIL error code.
  * The caller should clean up after themselves and return.
  */
-#define aoc_throw_fail(e, msg)  aoc_throw(e, AOC_EX_SOFTWARE_FAIL, msg)
+#define aoc_throw_fail(e, msg) \
+	aoc_throw(e, AOC_EX_SOFTWARE_FAIL, msg)
 
 /**
  * Exception handling.
@@ -70,7 +120,8 @@ bool aoc_is_err(aoc_err_t * err);
  * The error code must be a non-zero value, should be one of AOC_EX_* codes.
  * The caller should clean up after themselves and return.
  */
-#define aoc_throw(e, code, msg)  aoc_throw_(e, code, __FILE__ ":" AOC_STR(__LINE__) ": " msg)
+#define aoc_throw(e, code, msg) \
+	aoc_throw_(e, code, __FILE__ ":" AOC_STR(__LINE__) ": " msg)
 
 void aoc_throw_(aoc_ex_t * e, int code, char const * msg);
 
@@ -84,8 +135,11 @@ void aoc_throw_(aoc_ex_t * e, int code, char const * msg);
 bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e);
 
 
+
 /*
+ *
  * Logic helpers
+ *
  */
 
 #define AOC_DECLARE_HELPERS_FOR(type) \
@@ -119,13 +173,17 @@ inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
 	return width * y + x;
 }
 
-#define aoc_check_bounds(matrix, x, y)  ((x) >= 0 && (y) >= 0 && (x) < (matrix).width && (y) < (matrix).height)
-#define aoc_div_ceil(a, b)  ((a) / (b) + ((a) % (b) > 0))
+#define aoc_check_bounds(matrix, x, y) \
+	((x) >= 0 && (y) >= 0 && (x) < (matrix).width && (y) < (matrix).height)
+#define aoc_div_ceil(a, b) \
+	((a) / (b) + ((a) % (b) > 0))
 
 
 
 /*
+ *
  * File helpers
+ *
  */
 
 size_t aoc_count_lines(FILE * file);
@@ -135,12 +193,20 @@ size_t aoc_get_until_newline(char ** buf, size_t * buf_size, FILE * file);
 
 
 /*
+ *
  * String helpers
+ *
  */
 
-size_t aoc_count_chars(char const * s, char c);
 /**
- * Warning: not the same as splitting a string, tokenizing will skip multiple whitespace characters and ignore empty fields.
+ * Counts number of occurences of c in a basic byte string.
+ * To handle multi-byte strings, use aoc_c32_count.
+ */
+size_t aoc_count_chars(char const * s, char c);
+
+/**
+ * @deprecated	Since day 17. Use aoc_c32_split.
+ * Warning: not the same as splitting a string, tokenizing will skip multiple whitespace characters and thus ignore empty fields.
  * Also it relies on strtok which is not thread-safe. Whoops.
  */
 size_t aoc_tokenize(char * s, char delimiter, char *** token_starts, size_t * tokens_buf_size);
@@ -188,10 +254,44 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 char32_t aoc_c32_get(char const * s, char const ** s_end, mbstate_t * state, aoc_ex_t * e);
 
 /**
- * @deprecated	Since day 16 (due to old exception handling model). 
+ * @deprecated	Since day 16 (due to old exception handling model, and juggling too many parameters). 
  * @deprecated	Currently no replacement, because I'm lazy.
  */
 size_t aoc_c32_get_line(char32_t * ws_out, size_t * n, char const ** s_in, mbstate_t * state, aoc_err_t * err);
+
+/**
+ * Find the next occurence of a given char32_t in multibyte string s.
+ * @param	s	Input string.
+ * @param	c32	Character to find.
+ * @param[out]	c	Result: pointer to first byte containing found character, or to the end of the string if c32 wasn't found.
+ * @param[out]	c_next	Result: pointer to first byte containing following character, or to the end of the string if c32 wasn't found.
+ * @param	state	Shift state.
+ * @param	e	Exception.
+ */
+void aoc_c32_find(char const * s, char32_t c32, char const ** c, char const ** c_end, mbstate_t * state, aoc_ex_t * e);
+
+/**
+ * Counts the occurences of a given char32_t in multibyte string s.
+ * @param	s	Input string.
+ * @param	c32	Character to count.
+ * @param	state	Shift state.
+ * @param	e	Exception.
+ */
+size_t aoc_c32_count(char const * s, char32_t c32, mbstate_t * state, aoc_ex_t * e);
+
+/**
+ * Modifies the string by replacing delimiters with null bytes.
+ * Is aware of multibyte encodings with shift sequences
+ * (throws an exception if inserting a null byte would result in an invalid NTMBS).
+ * @param	s	String to modify
+ * @param	delimiter	Char to split on
+ * @param	substrings	Array of pointers to resulting substarts, the array is expected to be of size at least 1 + aoc_c32_count(s, c32...)
+ * @param	substring_lengths	Array of pointers to sizes of resulting substarts, the array is expected to be of size at least 1 + aoc_c32_count(s, c32...)
+ * @param	substrings_count	Size of substrings and substring_lengths arrays; maximum amount of substrings that will be created.
+ * @param	e	Exception
+ * @return	Amount of substrings
+ */
+size_t aoc_c32_split(char * s, char32_t delimiter, char ** substrings, size_t * substring_lengths, size_t substrings_count, aoc_ex_t * e);
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model). 
@@ -203,9 +303,10 @@ void aoc_c32_to_str(char32_t c, char * str, aoc_err_t * err);
 
 
 /*
+ *
  * Matrix helpers
+ *
  */
-
 
 extern size_t aoc_sq8_x_diffs[8];
 extern size_t aoc_sq8_y_diffs[8];
@@ -275,9 +376,10 @@ typedef struct {
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model). 
- * @deprecated	Currently no replacement, because I'm lazy.
+ * @deprecated	Use aoc_c32_2d_new instead.
  */
 aoc_c32_2d_t aoc_c32_2d_parse(char const * s, aoc_err_t * err);
+aoc_c32_2d_t aoc_c32_2d_new(char const * s, aoc_ex_t * e);
 
 aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_ex_t * err);
 
@@ -298,7 +400,9 @@ void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e);
 
 
 /**
+ *
  * Bit array
+ *
  */
 
 
@@ -312,7 +416,18 @@ typedef struct {
  * @deprecated	Use aoc_bit_array_new instead.
  */
 aoc_bit_array_t aoc_bit_array_make(size_t bits_count, aoc_err_t * err);
-aoc_bit_array_t aoc_bit_array_new(size_t bits_count, aoc_ex_t * err);
+/**
+ * Throws an exception if calloc() fails, which is definitely overkill.
+ * I was probably too eager to use my "exception handler" here.
+ */
+aoc_bit_array_t aoc_bit_array_new(size_t bits_count, aoc_ex_t * e);
+aoc_bit_array_t aoc_bit_array_new_(size_t bits_count);
+#define aoc_bit_array_new_1(s) \
+	aoc_bit_array_new_(s)
+#define aoc_bit_array_new_2(s, e) \
+	aoc_bit_array_new(s, e)
+#define aoc_bit_array_new(...) \
+	GET_MACRO(__VA_ARGS__, _4, _3, aoc_bit_array_new_2, aoc_bit_array_new_1)(__VA_ARGS__)
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model). 
@@ -353,33 +468,39 @@ void aoc_bit_array_2d_fprint(aoc_bit_array_t bit_array, size_t width, char false
 
 
 /*
+ *
  * Main function boilerplate
+ *
  */
 
-// Deprecated since day 7
+/**
+ * @deprecated	Since day 7
+ */
 #define AOC_MSG_SIZE 100
 
 /**
- * @deprecated Since day 7
+ * @deprecated	Since day 7
  */
 int aoc_main(int argc, char * argv[], 
 		char * (*solve1)(FILE *), 
 		char * (*solve2)(FILE *));
 
 /**
- * @deprecated Since day 7
+ * @deprecated	Since day 7
  */
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
 
-typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_ex_t * e);
+typedef int64_t (*aoc_solver_lines_t)(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
 
 /**
- * @deprecated	Since day 16 (due to old exception handling model). 
- * @deprecated	Currently no replacement, because I'm lazy.
+ * @deprecated	Since day 16 (due to old exception handling model, and it skipping lines). 
+ * @deprecated	Use aoc_main_lines instead.
  */
 int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, 
 		int64_t (*solve)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err));
+
+int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
 
 
 typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_ex_t * e);
