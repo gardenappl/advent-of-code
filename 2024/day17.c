@@ -6,11 +6,13 @@
 
 #include "aoc.h"
 
-// I spent so long debugging this..
-// Not realizing that you ACTUALLY have to submit the answer as a list,
-// with commas.
-// I thought I was clever for joining the output values into a integer value.
-#define DEBUG 1
+/**
+ * I spent so long debugging part 1..
+ * Not realizing that you ACTUALLY have to submit the answer as a list,
+ * with commas.
+ * I thought I was clever for joining the output values into a integer value.
+ */
+// #define DEBUG 1
 
 typedef enum : int32_t {
 	/**
@@ -58,7 +60,7 @@ typedef struct {
 	size_t pc;
 	size_t rom_size;
 
-	uint64_t output;
+	uint64_t output_decimals;
 } computer_t;
 
 static int64_t combo(computer_t comp, inst_t operand) {
@@ -75,13 +77,15 @@ static int64_t combo(computer_t comp, inst_t operand) {
 }
 
 static void output(computer_t * comp, inst_t value, aoc_ex_t * e) {
-	if (comp->output * 10 < comp->output) {
+	if (comp->output_decimals * 10 < comp->output_decimals) {
 		aoc_throw_fail(e, "Too much output");
 		return;
 	}
-	comp->output *= 10;
-	comp->output += value;
+	comp->output_decimals *= 10;
+	comp->output_decimals += value;
+#ifdef DEBUG
 	fprintf(stderr, "%" PRId32 ",", value);
+#endif
 }
 
 static bool step(computer_t * comp, aoc_ex_t * e) {
@@ -154,7 +158,9 @@ static bool step(computer_t * comp, aoc_ex_t * e) {
 	return true;
 }
 
-static void exec(computer_t * comp, aoc_ex_t * e) {
+static int64_t exec(computer_t * comp, aoc_ex_t * e) {
+	comp->pc = 0;
+	comp->output_decimals = 0;
 	bool has_next_step;
 	do {
 #ifdef DEBUG
@@ -176,9 +182,148 @@ static void exec(computer_t * comp, aoc_ex_t * e) {
 		}
 #endif
 		if (*e)
-			return;
+			return -1;
 	} while (has_next_step);
+#ifdef DEBUG
 	fputc('\n', stderr);
+#endif
+	return comp->output_decimals;
+}
+
+
+static bool b_overwritten_by_a(inst_t inst, inst_t operand) {
+	if ((inst == BST || inst == BDV) && operand <= 4)
+		return true;
+	return false;
+}
+
+static bool c_remains_const(inst_t inst, inst_t operand) {
+	return inst != CDV;
+}
+
+static bool c_overwritten_by_a(inst_t inst, inst_t operand) {
+	if ((inst == CDV) && operand <= 4)
+		return true;
+	return false;
+}
+
+static bool c_overwritten_by_a_or_b(inst_t inst, inst_t operand) {
+	if ((inst == CDV) && operand <= 5)
+		return true;
+	return false;
+}
+
+static bool cannot_make_quine_then_throw(aoc_ex_t * e, computer_t * comp) {
+	if (comp->rom_size < 4) {
+		aoc_throw_fail(e, "cannot prove that program is not depenant on B and C");
+		return true;
+	}
+	bool b_overwritten = false;
+	bool c_overwritten = false;
+	size_t found_adv = 0;
+	size_t found_out = 0;
+	for (size_t i = 0; i < comp->rom_size - 2; i += 2) {
+		inst_t inst = comp->rom[i];
+		inst_t operand = comp->rom[i + 1];
+		if (inst == ADV) {
+			if (operand != 3) {
+				aoc_throw_fail(e, "cannot analyze program with ADV whose operand != 3");
+				return true;
+			}
+			++found_adv;
+		}
+		if (b_overwritten_by_a(inst, operand))
+			b_overwritten = true;
+		if (c_overwritten_by_a(inst, operand) || (b_overwritten && c_overwritten_by_a_or_b(inst, operand)))
+			c_overwritten = true;
+
+		if (!c_overwritten && !c_remains_const(inst, operand)) {
+			aoc_throw_fail(e, "cannot analyze program: C is not immediately overwritten by A or B");
+			return true;
+		}
+
+		if (inst == OUT) {
+			if (!b_overwritten || !c_overwritten) {
+				aoc_throw_fail(e, "cannot analyze program: B and C are not overwritten before printing");
+				return true;
+			}
+			++found_out;
+		}
+		if (inst == JNZ) {
+			aoc_throw_fail(e, "cannot analyze program with JNZ in the middle");
+			return true;
+		}
+	}
+
+	if (found_adv != 1 || found_out != 1) {
+		aoc_throw_fail(e, "cannot analyze program that doesn't have exactly one ADV and OUT instruction");
+		return true;
+	}
+	if (comp->rom[comp->rom_size - 2] != JNZ || comp->rom[comp->rom_size - 1] != 0) {
+		aoc_throw_fail(e, "cannot analyze program that doesn't end with JNZ 0");
+		return true;
+	}
+	return false;
+}
+
+// static int64_t make_quine(computer_t * comp, aoc_ex_t * e) {
+// 	int64_t a = 0;
+// 	for (size_t i = comp->rom_size; i > 0; --i) {
+// 		inst_t word = comp->rom[i - 1];
+//
+// 		int64_t required_decimals = 0;
+// 		for (size_t i2 = i - 1; i2 < comp->rom_size; ++i2)
+// 			required_decimals = (required_decimals * 10) + comp->rom[i2];
+// 		fprintf(stderr, "REQUIRED DECIMALS: %"PRId64" (word: %"PRId32")\n", required_decimals, word);
+//
+// 		int64_t try_a;
+// 		for (try_a = 0; try_a < 8; ++try_a) {
+// 			comp->a = (a << 3) | try_a;
+// 			comp->b = 0;
+// 			comp->c = 0;
+// 			int64_t result_decimals = exec(comp, e);
+// 			fprintf(stderr, "(%" PRIo64 " produces %" PRId64 ")\n", (a << 3) | try_a, result_decimals);
+// 			if (*e)
+// 				return -1;
+// 			if (result_decimals == required_decimals) {
+// 				fprintf(stderr, "(%" PRIo64 " produces %" PRId64 ")!!!\n", (a << 3) | try_a, required_decimals);
+// 				goto continue_next_word;
+// 			}
+// 		}
+// 		aoc_throw_fail(e, "could not find digit");
+// 		return -1;
+// 	continue_next_word:
+// 		a = (a << 3) | try_a;
+// 	}
+// 	return a;
+// }
+
+static int64_t make_quine(computer_t * comp, size_t inst_n, uint64_t a, aoc_ex_t * e) {
+	inst_t word = comp->rom[inst_n];
+
+	uint64_t required_decimals = 0;
+	for (size_t i = inst_n; i < comp->rom_size; ++i)
+		required_decimals = (required_decimals * 10) + comp->rom[i];
+	fprintf(stderr, "REQUIRED DECIMALS: %"PRId64" (word: %"PRId32")\n", required_decimals, word);
+
+	uint64_t try_a;
+	for (try_a = 0; try_a < 8; ++try_a) {
+		uint64_t next_a = (a << 3) | try_a;
+		comp->a = next_a;
+		int64_t result_decimals = exec(comp, e);
+		fprintf(stderr, "(%"PRIo64" produces %"PRId64")\n", next_a, result_decimals);
+		if (*e)
+			return -1;
+		if (result_decimals == required_decimals) {
+			fprintf(stderr, "(%"PRIo64" produces %"PRId64")!!!\n", next_a, required_decimals);
+			if (inst_n == 0)
+				return next_a;
+			int64_t min_result = make_quine(comp, inst_n - 1, next_a, e);
+			if (min_result > 0)
+				return min_result;
+		}
+	}
+	return -1;
 }
 
 static int64_t solve(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
@@ -212,13 +357,20 @@ static int64_t solve(char * const * lines, size_t lines_n, size_t const * line_l
 	for (size_t i = 0; i < comp.rom_size; ++i)
 		fprintf(stderr, "%" PRId32 "\n", comp.rom[i]);
 
-	exec(&comp, e);
+	int64_t result;
+	if (part == 1) {
+		result = exec(&comp, e);
+	} else {
+		if (cannot_make_quine_then_throw(e, &comp))
+			return -1;
+		result = make_quine(&comp, comp.rom_size - 1, 0, e);
+	}
 	if (*e)
 		return -1;
 
-	return comp.output;
+	return result;
 }
 
 int main(int argc, char * argv[]) {
-	aoc_main_lines(argc, argv, 1, solve);
+	aoc_main_lines(argc, argv, 2, solve);
 }
