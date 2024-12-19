@@ -1,5 +1,6 @@
 #include "aoc.h"
 
+#include <ctype.h>
 #include <locale.h>
 #include <uchar.h>
 #include <wchar.h>
@@ -315,6 +316,9 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 	if (nums_buf_size == 0)
 		return 0;
 
+	while (*s != '\0' && !isdigit(*s) && *s != '-')
+		++s;
+
 	size_t nums_n = 0;
 	do {
 		char * s_parse_end;
@@ -323,6 +327,8 @@ size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, si
 			break;
 		++nums_n;
 		s = s_parse_end;
+		while (*s != '\0' && (isspace(*s) || *s == delimiter))
+			++s;
 	} while (nums_n < nums_buf_size);
 
 	return nums_n;

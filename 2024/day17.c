@@ -6,7 +6,13 @@
 
 #include "aoc.h"
 
-typedef enum : char {
+// I spent so long debugging this..
+// Not realizing that you ACTUALLY have to submit the answer as a list,
+// with commas.
+// I thought I was clever for joining the output values into a integer value.
+#define DEBUG 1
+
+typedef enum : int32_t {
 	/**
 	 * The adv instruction (opcode 0) performs division. The numerator is the value in the A register. The denominator is found by raising 2 to the power of the instruction's combo operand. (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.) The result of the division operation is truncated to an integer and then written to the A register.
 	 */
@@ -41,23 +47,18 @@ typedef enum : char {
 	CDV = 7
 } inst_t;
 
-/**
- * 21 3-bit values can be stored in one 64-bit int.
- */
-#define MAX_BIT_OUTPUT 63
 
 typedef struct {
 	// Registers
-	int64_t a;
-	int64_t b;
-	int64_t c;
+	uint64_t a;
+	uint64_t b;
+	uint64_t c;
 
-	int32_t * rom;
+	inst_t * rom;
 	size_t pc;
 	size_t rom_size;
 
-	int64_t output;
-	char output_bits_written;
+	uint64_t output;
 } computer_t;
 
 static int64_t combo(computer_t comp, inst_t operand) {
@@ -73,81 +74,149 @@ static int64_t combo(computer_t comp, inst_t operand) {
 	}
 }
 
-static void output(computer_t comp, inst_t value, aoc_ex_t * e) {
-	if (comp.output_bits_written == MAX_BIT_OUTPUT) {
+static void output(computer_t * comp, inst_t value, aoc_ex_t * e) {
+	if (comp->output * 10 < comp->output) {
 		aoc_throw_fail(e, "Too much output");
 		return;
 	}
-	for (int i = 0; i < 3; ++i) {
-		comp.output <<= 1;
-		comp.output |= (value & 1);
-		value >>= 1;
-	}
-	comp.output_bits_written += 3;
+	comp->output *= 10;
+	comp->output += value;
+	fprintf(stderr, "%" PRId32 ",", value);
 }
 
-static bool step(computer_t comp, aoc_ex_t * e) {
-	if (comp.pc >= comp.rom_size - 1)
+static bool step(computer_t * comp, aoc_ex_t * e) {
+	if (comp->pc >= comp->rom_size - 1)
 		return false;
 
-	inst_t inst = comp.rom[comp.pc];
-	inst_t operand = comp.rom[comp.pc + 1];
-	int64_t combo_operand;
+	inst_t inst = comp->rom[comp->pc];
+	inst_t operand = comp->rom[comp->pc + 1];
 	switch (inst) {
 		case ADV:
-			combo_operand = combo(comp, operand);
-			if (combo_operand >= (sizeof(int64_t) * CHAR_BIT - 1))
-				comp.a = 0;
-			else
-				comp.a /= (1 << combo_operand);
+#ifdef DEBUG
+			fprintf(stderr, "ADV A=%" PRIo64 " combo(%" PRIo32 ")=%" PRIo64 "\n", 
+					comp->a, operand, combo(*comp, operand));
+#endif
+			comp->a >>= combo(*comp, operand);
 			break;
 		case BXL:
-			comp.b ^= operand;
+#ifdef DEBUG
+			fprintf(stderr, "BXL B=%" PRIo64 " op=%" PRIo32 "\n", comp->b, operand);
+#endif
+			comp->b ^= operand;
 			break;
 		case BST:
-			comp.b = combo(comp, operand) % 8;
+#ifdef DEBUG
+			fprintf(stderr, "BST B=%" PRIo64 " combo(%" PRIo32 ")=%" PRIo64 "\n", 
+					comp->b, operand, combo(*comp, operand));
+#endif
+			comp->b = combo(*comp, operand) % 8;
 			break;
 		case JNZ:
-			if (comp.a) {
-				comp.pc = operand;
+#ifdef DEBUG
+			fprintf(stderr, "JNZ A=%" PRIo64 " op=%" PRIo32 "\n", comp->a, operand);
+#endif
+			if (comp->a) {
+				comp->pc = operand;
 				return true;
 			}
+			break;
 		case BXC:
-			comp.b = comp.b ^ comp.c;
+#ifdef DEBUG
+			fprintf(stderr, "BXC B=%" PRIo64 " C=%" PRIo64 "\n", comp->b, comp->c);
+#endif
+			comp->b ^= comp->c;
 			break;
 		case OUT:
-			output(comp, combo(comp, operand) % 8, e);
+#ifdef DEBUG
+			fprintf(stderr, "OUT combo(%" PRIo32 ")=%" PRIo64 "\n", 
+					operand, combo(*comp, operand));
+#endif
+			output(comp, combo(*comp, operand) % 8, e);
 			if (*e)
 				return false;
 			break;
 		case BDV:
-			combo_operand = combo(comp, operand);
-			if (combo_operand >= (sizeof(int64_t) * CHAR_BIT - 1))
-				comp.b = 0;
-			else
-				comp.b = comp.a / (1 << combo_operand);
+#ifdef DEBUG
+			fprintf(stderr, "BDV A=%" PRIo64 " combo(%" PRIo32 ")=%" PRIo64 "\n", 
+					comp->a, operand, combo(*comp, operand));
+#endif
+			comp->b = comp->a >> combo(*comp, operand);
 			break;
 		case CDV:
-			combo_operand = combo(comp, operand);
-			if (combo_operand >= (sizeof(int64_t) * CHAR_BIT - 1))
-				comp.c = 0;
-			else
-				comp.c = comp.a / (1 << combo_operand);
+#ifdef DEBUG
+			fprintf(stderr, "CDV A=%" PRIo64 " combo(%" PRIo32 ")=%" PRIo64 "\n", 
+					comp->a, operand, combo(*comp, operand));
+#endif
+			comp->c = comp->a >> combo(*comp, operand);
 			break;
 	}
-	comp.pc += 2;
+	comp->pc += 2;
 	return true;
+}
+
+static void exec(computer_t * comp, aoc_ex_t * e) {
+	bool has_next_step;
+	do {
+#ifdef DEBUG
+		for (size_t i = 0; i < comp->rom_size; i += 2) {
+			if (comp->pc == i)
+				fprintf(stderr, "(%" PRIo32 " %" PRIo32 ")", comp->rom[i], comp->rom[i + 1]);
+			else
+				fprintf(stderr, " %" PRIo32 " %" PRIo32 " ", comp->rom[i], comp->rom[i + 1]);
+		}
+		fprintf(stderr, "\nA=%.10" PRIo64 " B=%.10" PRIo64 " C=%.10" PRIo64 " pc=%zu\n", 
+				comp->a, comp->b, comp->c, comp->pc);
+#endif
+		has_next_step = step(comp, e);
+#ifdef DEBUG
+		if (has_next_step) {
+			fprintf(stderr, "A=%.10" PRIo64 " B=%.10" PRIo64 " C=%.10" PRIo64 " pc=%zu\n\n", 
+					comp->a, comp->b, comp->c, comp->pc);
+			fgetc(stdin);
+		}
+#endif
+		if (*e)
+			return;
+	} while (has_next_step);
+	fputc('\n', stderr);
 }
 
 static int64_t solve(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
 	if (lines_n != 5) {
+		aoc_throw(e, AOC_EX_DATA_ERR, "wrong number of lines");
+		return -1;
+	}
+	computer_t comp = { 0 };
+	if (sscanf(lines[0], "Register A: %" PRIu64, &comp.a) != 1) {
 		aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
 		return -1;
 	}
-	for (size_t i = 0; i < lines_n; ++i) {
-		fprintf(stderr, "length: %zu, line: \"%s\"\n", line_lengths[i], lines[i]);
+	if (sscanf(lines[1], "Register B: %" PRIu64, &comp.b) != 1) {
+		aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
+		return -1;
 	}
-	return 0;
+	if (sscanf(lines[2], "Register C: %" PRIu64, &comp.c) != 1) {
+		aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
+		return -1;
+	}
+	int parse = 0;
+	sscanf(lines[4], "Program: %n", &parse);
+	if (parse == 0) {
+		aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
+		return -1;
+	}
+	size_t rom_buf_size = aoc_numbers_line_estimate_size(line_lengths[4]);
+	comp.rom = assert_calloc(rom_buf_size, inst_t);
+	comp.rom_size = aoc_numbers_line_parse(lines[4], ',', comp.rom, rom_buf_size);
+
+	for (size_t i = 0; i < comp.rom_size; ++i)
+		fprintf(stderr, "%" PRId32 "\n", comp.rom[i]);
+
+	exec(&comp, e);
+	if (*e)
+		return -1;
+
+	return comp.output;
 }
 
 int main(int argc, char * argv[]) {

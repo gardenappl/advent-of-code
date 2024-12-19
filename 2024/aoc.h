@@ -244,6 +244,7 @@ void aoc_numbers_line_free(aoc_numbers_line num_line);
 size_t aoc_numbers_line_estimate_size(size_t longest_line_size);
 
 /**
+ * Skips any non-digit characters before the first number, then only skips delimiters and whitespace.
  * @return	Amount of numbers successfully parsed to nums
  */
 size_t aoc_numbers_line_parse(char const * s, char delimiter, int32_t * nums, size_t nums_buf_size);
