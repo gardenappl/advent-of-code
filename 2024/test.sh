@@ -1,4 +1,6 @@
 #!/bin/sh
+
+set -o errexit
 if [ -z "$1" ]; then
 	printf "Usage: ./test.sh dayX.c dayX.txt\n" >&2
 	printf "    OR ./test.sh DAYS" >&2

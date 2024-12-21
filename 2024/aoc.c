@@ -442,9 +442,10 @@ size_t aoc_c32_split(char * s, char32_t delimiter, char ** substrings, size_t * 
 			}
 			state = next_state;
 		}
-	continue_substring: ;
+		break;
+	continue_substring:;
 	}
-	substring_sizes[i] = strlen(c_next);
+	substring_sizes[i] = strlen(substrings[i]);
 	return i + 1;
 }
 
