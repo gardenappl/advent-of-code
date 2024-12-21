@@ -52,9 +52,7 @@ static int32_t shortest_path(int32_t * distances) {
 	return min_dist;
 }
 
-static bool walk_back(int32_t * distances, int32_t x, int32_t y, int32_t current_dist, bool debug) {
-	if (debug)
-		fprintf(stderr, "i'm walking 'ere: 'x: %"PRId32", y: %"PRId32", dist: %"PRId32"\n", x, y, current_dist);
+static bool walk_back(int32_t * distances, int32_t x, int32_t y, int32_t current_dist) {
 	if (x == X_START && y == Y_START) {
 		return true;
 	}
@@ -72,10 +70,11 @@ static bool walk_back(int32_t * distances, int32_t x, int32_t y, int32_t current
 		size_t x_y_next_i = aoc_index_2d(WIDTH, x_next, y_next);
 		if (distances[x_y_next_i] != next_dist)
 			continue;
-		bool walked = walk_back(distances, x_next, y_next, next_dist, debug);
+		bool walked = walk_back(distances, x_next, y_next, next_dist);
 		if (walked)
 			return true;
-		// break;
+		// TODO: somehow gets stuck sometimes if I try any more recursions
+		break; 
 	}
 	return false;
 }
@@ -101,20 +100,11 @@ static int64_t solve(char * const * lines, size_t lines_n, size_t const * line_l
 	}
 
 	int32_t min_dist = shortest_path(distances);
-	bool can_walk_back = walk_back(distances, X_END, Y_END, min_dist, true);
+	bool can_walk_back = walk_back(distances, X_END, Y_END, min_dist);
 	if (!can_walk_back) {
 		aoc_throw_fail(e, "bruh");
 		return result;
 	}
-				for (size_t y = 0; y < HEIGHT; ++y) {
-					for (size_t x = 0; x < WIDTH; ++x) {
-						if (distances[aoc_index_2d(WIDTH, x, y)] == -1)
-							fputc('#', stderr);
-						else
-							fputc('.', stderr);
-					}
-					fputc('\n', stderr);
-				}
 
 	if (part == 1) {
 		result = min_dist;
@@ -135,27 +125,7 @@ static int64_t solve(char * const * lines, size_t lines_n, size_t const * line_l
 			if (x == X_END && y == Y_END)
 				break;
 			distances[aoc_index_2d(WIDTH, x, y)] = -1;
-			// if ((x == 16 && y == 35) || (x == 18 && y == 43) || (x == 39 && y == 40)) {
-			// 	for (size_t y = 0; y < HEIGHT; ++y) {
-			// 		for (size_t x = 0; x < WIDTH; ++x) {
-			// 			if (x == 39 && y == 40)
-			// 				fputc('J', stderr);
-			// 			else if (distances[aoc_index_2d(WIDTH, x, y)] == -1)
-			// 				fputc('#', stderr);
-			// 			else
-			// 				fputc('.', stderr);
-			// 		}
-			// 		fputc('\n', stderr);
-			// 	}
-			// 	// reset and find another path
-			// 	min_dist = shortest_path(distances);
-			// 	fprintf(stderr, "dist: %"PRId32"\n", min_dist);
-			// 	if (min_dist == INT32_MAX) {
-			// 		fputs("lolblocked!\n", stderr);
-			// 		break;
-			// 	}
-			// }
-			bool can_walk_back = walk_back(distances, X_END, Y_END, min_dist, false);
+			bool can_walk_back = walk_back(distances, X_END, Y_END, min_dist);
 			if (can_walk_back) {
 				fputs("old path still works\n", stderr);
 				continue;
