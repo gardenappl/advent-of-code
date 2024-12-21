@@ -482,12 +482,12 @@ void aoc_c32_fprint(char32_t c, FILE * file, aoc_ex_t * e) {
  * Matrix helpers
  */
 
-size_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
-size_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
-size_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
-size_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
-size_t aoc_dir4_x_diffs[] = {  0,  1,  0, -1 };
-size_t aoc_dir4_y_diffs[] = { -1,  0,  1,  0 };
+int32_t aoc_sq8_x_diffs[] = { 0,  1,  1,  1,  0, -1, -1, -1 };
+int32_t aoc_sq8_y_diffs[] = { 1,  1,  0, -1, -1, -1,  0,  1 };
+int32_t aoc_cross4_x_diffs[] = {  1,  1, -1, -1 };
+int32_t aoc_cross4_y_diffs[] = { -1,  1,  1, -1 };
+int32_t aoc_dir4_x_diffs[] = {  0,  1,  0, -1 };
+int32_t aoc_dir4_y_diffs[] = { -1,  0,  1,  0 };
 char aoc_dir4_chars[] = { '^', '>', 'v', '<' };
 
 

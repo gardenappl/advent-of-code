@@ -311,15 +311,15 @@ void aoc_c32_fprint(char32_t c, FILE * file, aoc_ex_t * e);
  *
  */
 
-extern size_t aoc_sq8_x_diffs[8];
-extern size_t aoc_sq8_y_diffs[8];
-extern size_t aoc_cross4_x_diffs[4];
-extern size_t aoc_cross4_y_diffs[4];
+extern int32_t aoc_sq8_x_diffs[8];
+extern int32_t aoc_sq8_y_diffs[8];
+extern int32_t aoc_cross4_x_diffs[4];
+extern int32_t aoc_cross4_y_diffs[4];
 
 typedef enum { AOC_DIR4_UP, AOC_DIR4_RIGHT, AOC_DIR4_DOWN, AOC_DIR4_LEFT } aoc_dir4_t;
 
-extern size_t aoc_dir4_x_diffs[4];
-extern size_t aoc_dir4_y_diffs[4];
+extern int32_t aoc_dir4_x_diffs[4];
+extern int32_t aoc_dir4_y_diffs[4];
 extern char aoc_dir4_chars[4];
 
 
