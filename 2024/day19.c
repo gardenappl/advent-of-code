@@ -96,5 +96,5 @@ cleanup_towels:
 }
 
 int main(int argc, char * argv[]) {
-	aoc_main_lines(argc, argv, 2, solve);
+	aoc_main_const_lines(argc, argv, 2, solve);
 }

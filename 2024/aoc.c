@@ -1,5 +1,6 @@
 #include "aoc.h"
 
+#include <stdalign.h>
 #include <ctype.h>
 #include <locale.h>
 #include <uchar.h>
@@ -693,6 +694,16 @@ undo_matrix:
 	return (aoc_c32_2d_t) { 0 };
 }
 
+aoc_c32_2d_t aoc_c32_2d_copy(aoc_c32_2d_t matrix) {
+	aoc_c32_2d_t matrix2 = {
+		.ws = assert_malloc(matrix.width * matrix.height, char32_t),
+		.width = matrix.width,
+		.height = matrix.height
+	};
+	memcpy(matrix2.ws, matrix.ws, matrix.width * matrix.height * sizeof(char32_t));
+	return matrix2;
+}
+
 bool aoc_c32_2d_check_bounded(aoc_c32_2d_t matrix, char32_t boundary) {
 	for (size_t x = 0; x < matrix.width; ++x) {
 		if (aoc_c32_2d_get(matrix, x, 0) != boundary)
@@ -742,6 +753,52 @@ void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e) {
 	}
 	if (ferror(file))
 		aoc_throw(e, AOC_EX_IO_ERROR, "could not print matrix");
+}
+
+extern void aoc_shortest_path(int32_t * distances, int32_t x, int32_t y, 
+		int32_t x_end, int32_t y_end, 
+		int32_t width, int32_t height,
+		int32_t (*get_next_dist)(int32_t current_dist, int32_t x, int32_t y, size_t dir),
+		int32_t current_dist, int32_t * min_dist);
+
+void aoc_make_c32_2d_into_path_matrix(aoc_c32_2d_t matrix, 
+		int32_t * x_start, int32_t * y_start, 
+		int32_t * x_end, int32_t * y_end, aoc_ex_t * e) {
+	static_assert(sizeof(int32_t) == sizeof(char32_t), "int32 and char32 have different sizes");
+	static_assert(alignof(int32_t) == alignof(char32_t), "int32 and char32 have different alignments");
+
+	int32_t x_start_ = -1, y_start_ = -1, x_end_ = -1, y_end_ = -1;
+	for (size_t y = 0; y < matrix.height; ++y) {
+		for (size_t x = 0; x < matrix.width; ++x) {
+			char32_t c32 = aoc_c32_2d_get(matrix, x, y);
+			switch (c32) {
+				case 'E':
+					x_end_ = x;
+					y_end_ = y;
+					goto setfloor;
+				case 'S':
+					x_start_ = x;
+					y_start_ = y;
+				case '.':
+				setfloor:
+					aoc_c32_2d_set(matrix, x, y, (char32_t)INT32_MAX);
+					break;
+				default:
+					aoc_c32_2d_set(matrix, x, y, (char32_t)-1);
+					break;
+			}
+		}
+	}
+	if (x_start_ == -1) {
+		aoc_throw(e, AOC_EX_DATA_ERR, "no start position!");
+	} else if (x_end_ == -1) {
+		aoc_throw(e, AOC_EX_DATA_ERR, "no end position!");
+	} else {
+		*x_start = x_start_;
+		*x_end = x_end_;
+		*y_start = y_start_;
+		*y_end = y_end_;
+	}
 }
 
 
@@ -937,7 +994,7 @@ typedef struct {
 	char const * const * lines;
 	size_t lines_n;
 	size_t const * line_lengths;
-	aoc_solver_lines_t solve;
+	aoc_solver_const_lines_t solve;
 } lines_env_t;
 
 
@@ -988,6 +1045,10 @@ static void lines_cleanup(void * env_) {
 }
 
 int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve) {
+	return aoc_main_const_lines(argc, argv, parts_implemented, (aoc_solver_const_lines_t)solve);
+}
+
+int aoc_main_const_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_const_lines_t solve) {
 	setlocale(LC_ALL, "");
 
 	lines_env_t * env = assert_calloc(1, lines_env_t);
@@ -995,7 +1056,6 @@ int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver
 	return aoc_main_(argc, argv, parts_implemented, env,
 			lines_prepare, lines_solve, lines_cleanup);
 }
-
 
 
 typedef int64_t (*old_solver_lines_t)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err);
@@ -1089,16 +1149,19 @@ cleanup_input:
 static int64_t c32_2d_solve(void * env_, int part, aoc_ex_t * e) {
 	c32_2d_env_t * env = (c32_2d_env_t *)env_;
 
+	aoc_c32_2d_t matrix = aoc_c32_2d_copy(env->matrix);
 	int64_t result;
 	if (env->old) {
 		aoc_err_t * err = aoc_ex_to_err(e);
-		result = env->solve_old(env->matrix, part, err);
+		result = env->solve_old(matrix, part, err);
 		if (err_then_aoc_throw(e, err)) {
-			return -1;
+			goto cleanup;
 		}
 	} else {
-		result = env->solve(env->matrix, part, e);
+		result = env->solve(matrix, part, e);
 	}
+cleanup:
+	free(matrix.ws);
 	return result;
 }
 

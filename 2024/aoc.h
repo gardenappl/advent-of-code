@@ -386,6 +386,8 @@ aoc_c32_2d_t aoc_c32_2d_new(char const * s, aoc_ex_t * e);
 
 aoc_c32_2d_t aoc_c32_2d_parse_bounded(char const * const * lines, size_t lines_n, char boundary, aoc_ex_t * err);
 
+aoc_c32_2d_t aoc_c32_2d_copy(aoc_c32_2d_t matrix);
+
 bool aoc_c32_2d_check_bounded(aoc_c32_2d_t matrix, char32_t boundary);
 
 bool aoc_c32_2d_find(aoc_c32_2d_t matrix, char32_t c32, int32_t * x, int32_t * y);
@@ -399,6 +401,45 @@ inline void aoc_c32_2d_set(aoc_c32_2d_t matrix, size_t x, size_t y, char32_t c) 
 }
 
 void aoc_c32_2d_fprint(aoc_c32_2d_t matrix, FILE * file, aoc_ex_t * e);
+
+
+/**
+ * Finds the shortest path.
+ * Done with DFS because I'm too lazy to implement a set.
+ * @param	distances	Initial matrix of nodes. Visitable nodes are expected to have value INT_MAX32, unvisitable nodes are expected to have value -1
+ */
+inline void aoc_shortest_path(int32_t * distances, int32_t x, int32_t y, 
+		int32_t x_end, int32_t y_end, 
+		int32_t width, int32_t height,
+		int32_t (*get_next_dist)(int32_t current_dist, int32_t x, int32_t y, size_t dir),
+		int32_t current_dist, int32_t * min_dist) {
+	size_t x_y_i = aoc_index_2d(width, x, y);
+	distances[x_y_i] = current_dist;
+
+	if (current_dist >= *min_dist)
+		return;
+
+	if (x == x_end && y == y_end) {
+		*min_dist = current_dist;
+		return;
+	}
+
+	for (size_t dir = 0; dir < 4; ++dir) {
+		int32_t next_dist = get_next_dist(current_dist, x, y, dir);
+		int32_t x_next = x + aoc_dir4_x_diffs[dir];
+		int32_t y_next = y + aoc_dir4_y_diffs[dir];
+		if (x_next < 0 || x_next >= width || y_next < 0 || y_next >= height)
+			continue;
+
+		size_t x_y_next_i = aoc_index_2d(width, x_next, y_next);
+		if (distances[x_y_next_i] <= next_dist)
+			continue;
+		aoc_shortest_path(distances, x_next, y_next, x_end, y_end, width, height, 
+				get_next_dist, next_dist, min_dist);
+	}
+}
+
+void aoc_make_c32_2d_into_path_matrix(aoc_c32_2d_t matrix, int32_t * x_start, int32_t * y_start, int32_t * x_end, int32_t * y_end, aoc_ex_t * e);
 
 
 
@@ -494,16 +535,28 @@ int aoc_main(int argc, char * argv[],
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
 
-typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
+/**
+ * @deprecated	Since day 19 (due to wrong const-ness). 
+ * @deprecated	Use aoc_solver_const_lines_t instead.
+ */
+typedef int64_t (*aoc_solver_lines_t)(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
+
+typedef int64_t (*aoc_solver_const_lines_t)(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model, and it skipping lines). 
- * @deprecated	Use aoc_main_lines instead.
+ * @deprecated	Use aoc_main_const_lines instead.
  */
 int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented, 
 		int64_t (*solve)(char const * const * lines, size_t lines_n, size_t longest_line_size, int32_t part, aoc_err_t * err));
 
+/**
+ * @deprecated	Since day 19 (due to wrong const-ness). 
+ * @deprecated	Use aoc_main_const_lines instead.
+ */
 int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
+
+int aoc_main_const_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_const_lines_t solve);
 
 
 typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_ex_t * e);
