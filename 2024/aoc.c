@@ -934,7 +934,7 @@ int aoc_main(int argc, char ** argv, old_solver_file_t solve1, old_solver_file_t
 
 
 typedef struct {
-	char * const * lines;
+	char const * const * lines;
 	size_t lines_n;
 	size_t const * line_lengths;
 	aoc_solver_lines_t solve;
@@ -965,7 +965,7 @@ static void lines_prepare(void * env, FILE * file, char const * file_name, aoc_e
 	if (*e)
 		goto undo_lines;
 
-	lines_env->lines = (char * const *)lines;
+	lines_env->lines = (char const * const *)lines;
 	lines_env->line_lengths = (size_t const *)line_lengths;
 
 	return;

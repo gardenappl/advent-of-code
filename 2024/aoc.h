@@ -494,7 +494,7 @@ int aoc_main(int argc, char * argv[],
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t));
 
 
-typedef int64_t (*aoc_solver_lines_t)(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
+typedef int64_t (*aoc_solver_lines_t)(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model, and it skipping lines). 
