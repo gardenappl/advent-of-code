@@ -179,8 +179,9 @@ bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e) {
 	extern type aoc_min_##type(type a, type b); \
 	extern type aoc_max_##type(type a, type b); \
 	extern void aoc_swap_##type(type * a, type * b); \
-	extern type aoc_mod_##type(type a, type b);
+	extern type aoc_mod_##type(type i, type mod);
 
+AOC_DEFINE_HELPERS_FOR(int)
 AOC_DEFINE_HELPERS_FOR(int32_t)
 AOC_DEFINE_HELPERS_FOR(int64_t)
 

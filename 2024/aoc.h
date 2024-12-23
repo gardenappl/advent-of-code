@@ -161,11 +161,12 @@ bool aoc_err_if_ex(aoc_err_t * err, aoc_ex_t * e);
 		*a ^= *b; \
 	} \
 	\
-	inline type aoc_mod_##type(type a, type b) { \
-		type rem = a % b; \
-		return (rem >= 0) ? rem : (b + rem); \
+	inline type aoc_mod_##type(type i, type mod) { \
+		type rem = i % mod; \
+		return (rem >= 0) ? rem : (rem + mod); \
 	}
 
+AOC_DECLARE_HELPERS_FOR(int)
 AOC_DECLARE_HELPERS_FOR(int32_t)
 AOC_DECLARE_HELPERS_FOR(int64_t)
 
