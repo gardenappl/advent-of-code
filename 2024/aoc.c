@@ -16,6 +16,9 @@
 #include <limits.h>
 #include <threads.h>
 
+
+#define INT64_MAX_STR_SIZE 21
+
 /*
  * Error handling
  */
@@ -866,6 +869,14 @@ void aoc_bit_array_2d_fprint(aoc_bit_array_t bit_array, size_t width, char false
  *
  */
 
+
+char * make_result_str(int64_t result) {
+	char * result_str = assert_malloc(INT64_MAX_STR_SIZE, char);
+	sprintf(result_str, "%"PRId64, result);
+	return result_str;
+}
+
+
 char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix_t)) {
 	char * s = aoc_read_file(input);
 	if (!s) return NULL;
@@ -888,7 +899,7 @@ char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix
 
 int aoc_main_(int argc, char ** argv, int parts_implemented, void * env,
 		void (*prepare)(void * env, FILE * file, char const * file_name, aoc_ex_t * e),
-		int64_t (*solve)(void * env, int part, aoc_ex_t * e),
+		char * (*solve)(void * env, int part, aoc_ex_t * e),
 		void (*cleanup)(void * env)) {
 	if (argc < 2) {
 		char * prog_name = "PROGRAM_NAME";
@@ -910,13 +921,15 @@ int aoc_main_(int argc, char ** argv, int parts_implemented, void * env,
 		goto cleanup;
 
 	for (int part = 1; part <= parts_implemented; ++part) {
-		int64_t result = solve(env, part, &ex);
+		char * result = solve(env, part, &ex);
 
-		if (print_ex(ex)) {
-			fprintf(stderr, "Part %" PRId32 " failure!\n", part);
+		if (!result || ex) {
+			print_ex(ex);
+			fprintf(stderr, "Part %"PRId32" failure!\n", part);
 			break;
 		} else {
-			fprintf(stderr, "Part %" PRId32 " success!\n%" PRId64 "\n", part, result);
+			fprintf(stderr, "Part %"PRId32" success!\n%s\n", part, result);
+			free(result);
 		}
 	}
 	if (cleanup)
@@ -945,28 +958,21 @@ static void file_prepare(void * env, FILE * file, char const * file_name, aoc_ex
 	file_env->file_name = file_name;
 }
 
-static int64_t file_solve(void * env, int part, aoc_ex_t * e) {
+static char * file_solve(void * env, int part, aoc_ex_t * e) {
 	file_env_t * file_env = (file_env_t *)env;
 
 	FILE * file = fopen(file_env->file_name, "r");
-	char * result_s;
+	char * result;
 	if (part == 1) {
-		result_s = file_env->solve1(file);
+		result = file_env->solve1(file);
 	} else {
-		result_s = file_env->solve2(file);
+		result = file_env->solve2(file);
 	}
 	fclose(file);
-	if (!result_s) {
+	if (!result) {
 		aoc_throw_fail(e, "Fail!");
-		return -1;
+		return NULL;
 	}
-	int64_t result;
-	if (sscanf(result_s, "%" PRId64, &result) != 1) {
-		aoc_throw_fail(e, "Could not parse output!");
-		goto cleanup;
-	}
-cleanup:
-	free(result_s);
 	return result;
 }
 
@@ -983,7 +989,11 @@ typedef struct {
 	char const * const * lines;
 	size_t lines_n;
 	size_t const * line_lengths;
-	aoc_solver_const_lines_t solve;
+	bool to_str;
+	union {
+		aoc_solver_const_lines_t solve;
+		aoc_solver_lines_to_str_t solve_to_str;
+	};
 } lines_env_t;
 
 
@@ -1022,9 +1032,13 @@ undo_input:
 	free(input);
 }
 
-static int64_t lines_solve(void * env_, int part, aoc_ex_t * e) {
+static char * lines_solve(void * env_, int part, aoc_ex_t * e) {
 	lines_env_t * env = (lines_env_t *)env_;
-	return env->solve(env->lines, env->lines_n, env->line_lengths, part, e);
+	if (env->to_str) {
+		return env->solve_to_str(env->lines, env->lines_n, env->line_lengths, part, e);
+	} else {
+		return make_result_str(env->solve(env->lines, env->lines_n, env->line_lengths, part, e));
+	}
 }
 
 static void lines_cleanup(void * env_) {
@@ -1042,6 +1056,16 @@ int aoc_main_const_lines(int argc, char ** argv, int32_t parts_implemented, aoc_
 
 	lines_env_t * env = assert_calloc(1, lines_env_t);
 	env->solve = solve;
+	return aoc_main_(argc, argv, parts_implemented, env,
+			lines_prepare, lines_solve, lines_cleanup);
+}
+
+int aoc_main_lines_to_str(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_to_str_t solve) {
+	setlocale(LC_ALL, "");
+
+	lines_env_t * env = assert_calloc(1, lines_env_t);
+	env->to_str = true;
+	env->solve_to_str = solve;
 	return aoc_main_(argc, argv, parts_implemented, env,
 			lines_prepare, lines_solve, lines_cleanup);
 }
@@ -1081,14 +1105,14 @@ static void old_lines_prepare(void * env_, FILE * file, char const * file_name, 
 	env->longest_line_size = longest_line_size;
 }
 
-static int64_t old_lines_solve(void * env_, int part, aoc_ex_t * e) {
+static char * old_lines_solve(void * env_, int part, aoc_ex_t * e) {
 	old_lines_env_t * env = (old_lines_env_t *)env_;
 	aoc_err_t * err = aoc_ex_to_err(e);
 	int64_t result = env->solve(env->lines, env->lines_n, env->longest_line_size, part, err);
 	if (err_then_aoc_throw(e, err)) {
-		return -1;
+		return NULL;
 	}
-	return result;
+	return make_result_str(result);
 }
 
 static void old_lines_cleanup(void * env_) {
@@ -1135,7 +1159,7 @@ cleanup_input:
 	free(input);
 }
 
-static int64_t c32_2d_solve(void * env_, int part, aoc_ex_t * e) {
+static char * c32_2d_solve(void * env_, int part, aoc_ex_t * e) {
 	c32_2d_env_t * env = (c32_2d_env_t *)env_;
 
 	aoc_c32_2d_t matrix = aoc_c32_2d_copy(env->matrix);
@@ -1151,7 +1175,7 @@ static int64_t c32_2d_solve(void * env_, int part, aoc_ex_t * e) {
 	}
 cleanup:
 	free(matrix.ws);
-	return result;
+	return make_result_str(result);
 }
 
 static void c32_2d_cleanup(void * env_) {

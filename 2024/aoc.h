@@ -522,6 +522,8 @@ void aoc_bit_array_2d_fprint(aoc_bit_array_t bit_array, size_t width, char false
  *
  */
 
+char * make_result_str(int64_t result);
+
 /**
  * @deprecated	Since day 7
  */
@@ -547,6 +549,7 @@ char * aoc_solve_for_matrix(FILE * input, int64_t (*solve_for_matrix)(aoc_matrix
 typedef int64_t (*aoc_solver_lines_t)(char * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
 
 typedef int64_t (*aoc_solver_const_lines_t)(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
+typedef char * (*aoc_solver_lines_to_str_t)(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e);
 
 /**
  * @deprecated	Since day 16 (due to old exception handling model, and it skipping lines). 
@@ -562,6 +565,7 @@ int aoc_main_parse_lines(int argc, char ** argv, int32_t parts_implemented,
 int aoc_main_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_t solve);
 
 int aoc_main_const_lines(int argc, char ** argv, int32_t parts_implemented, aoc_solver_const_lines_t solve);
+int aoc_main_lines_to_str(int argc, char ** argv, int32_t parts_implemented, aoc_solver_lines_to_str_t solve);
 
 
 typedef int64_t (*aoc_solver_c32_2d_t)(aoc_c32_2d_t matrix, int32_t part, aoc_ex_t * e);

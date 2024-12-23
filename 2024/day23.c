@@ -51,7 +51,10 @@ static void parse_connection(char const * restrict line, char hostname1[3], char
 	hostname2[2] = 0;
 }
 
-static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
+static char * solve1(bool const * connect_matrix, size_t id_n, int const * ips);
+static char * solve2(bool const * connect_matrix, size_t id_n, int const * ips);
+
+static char * solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
 	bool ip_exists[26 * 26] = { 0 };
 	for (size_t i = 0; i < lines_n; ++i) {
 		char hostname1[3];
@@ -59,7 +62,7 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 		parse_connection(lines[i], hostname1, hostname2, e);
 		// fprintf(stderr, "Parsed %s-%s (%d-%d)\n", hostname1, hostname2, hostname_to_ip(hostname1), hostname_to_ip(hostname2));
 		if (*e)
-			return -1;
+			return NULL;
 
 		ip_exists[hostname_to_ip(hostname1)] = true;
 		ip_exists[hostname_to_ip(hostname2)] = true;
@@ -100,6 +103,18 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 		connect_matrix[aoc_index_2d(id_n, id2, id1)] = true;
 	}
 
+	char * result;
+	if (part == 1)
+		result = solve1(connect_matrix, id_n, ips);
+	else
+		result = solve2(connect_matrix, id_n, ips);
+
+	free(ips);
+	free(ip_to_id);
+	return result;
+}
+
+static char * solve1(bool const * connect_matrix, size_t id_n, int const * ips) {
 	size_t found_t_triples = 0;
 
 	for (size_t y = 0; y < id_n; ++y) {
@@ -133,13 +148,128 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 			}
 		}
 	}
-	
+	return make_result_str(found_t_triples);
+}
 
-	free(ips);
-	free(ip_to_id);
-	return found_t_triples;
+static char * get_network_password(int const * ips, size_t id_n, bool const * network) {
+	char * result_str = assert_malloc(id_n * 3, char);
+	char * s = result_str;
+	bool first = true;
+	*s = '\0';
+	for (size_t id = 0; id < id_n; ++id) {
+		if (network[id]) {
+			if (!first) {
+				*s = ',';
+				++s;
+			}
+			first = false;
+			ip_to_hostname(ips[id], s);
+			s += 2;
+		}
+	}
+	return result_str;
+}
+
+static size_t get_max_network(bool const * restrict connect_matrix, size_t id_n, size_t start_id, size_t current_count, bool ** restrict network, int const * ips) {
+	if (start_id == id_n) {
+		// char * network_str = get_network_password(ips, id_n, *network);
+		// fprintf(stderr, "final network (%p): %s (count: %zu)\n", *network, network_str, current_count);
+		// free(network_str);
+		return current_count;
+	}
+
+	size_t max_count = current_count;
+	bool * current_network = assert_malloc(id_n, bool);
+	memcpy(current_network, *network, id_n * sizeof(bool));
+	bool * next_network = assert_malloc(id_n, bool);
+	bool * current_max_network = assert_malloc(id_n, bool);
+	memcpy(current_max_network, current_network, id_n * sizeof(bool));
+
+
+	// char * network_str = get_network_password(ips, id_n, current_network);
+	// fprintf(stderr, "network (%p): %s\n", current_network, network_str);
+	// free(network_str);
+
+	for (size_t id = start_id; id < id_n; ++id) {
+		for (size_t net_id = 0; net_id < start_id; ++net_id) {
+			if (current_network[net_id] && !connect_matrix[aoc_index_2d(id_n, net_id, id)])
+				goto continue_next_id;
+		}
+		// fprintf(stderr, "ID: %zu out of %zu\n", id, id_n);
+
+		memcpy(next_network, current_network, id_n * sizeof(bool));
+		next_network[id] = true;
+
+		// network_str = get_network_password(ips, id_n, next_network);
+		// fprintf(stderr, "next network (%p): %s\n", next_network, network_str);
+		// fflush(stderr);
+		// free(network_str);
+
+		size_t count = get_max_network(connect_matrix, id_n, id + 1, current_count + 1, &next_network, ips);
+		if (count > max_count) {
+			// fprintf(stderr, "swapping (count: %zu)\n", count);
+			// network_str = get_network_password(ips, id_n, next_network);
+			// fprintf(stderr, ".next network (%p): %s\n", next_network, network_str);
+			// free(network_str);
+			// network_str = get_network_password(ips, id_n, current_max_network);
+			// fprintf(stderr, ".current max network (%p): %s\n", current_max_network, network_str);
+			// fflush(stderr);
+			// free(network_str);
+
+			// memcpy(max_network_, next_network, id_n * sizeof(bool));
+			bool * swap = current_max_network;
+			current_max_network = next_network;
+			next_network = swap;
+
+			// fprintf(stderr, "now\n");
+			// network_str = get_network_password(ips, id_n, next_network);
+			// fprintf(stderr, ".next network (%p): %s\n", next_network, network_str);
+			// free(network_str);
+			// network_str = get_network_password(ips, id_n, current_max_network);
+			// fprintf(stderr, ".current max network (%p): %s\n", current_max_network, network_str);
+			// fflush(stderr);
+			// free(network_str);
+
+			max_count = count;
+		}
+
+		// network_str = get_network_password(ips, id_n, current_max_network);
+		// fprintf(stderr, "current max network now (%p): %s\n", current_max_network, network_str);
+		// fflush(stderr);
+		// free(network_str);
+continue_next_id:;
+	}
+	// network_str = get_network_password(ips, id_n, current_max_network);
+	// fprintf(stderr, "current max network finally (%p): %s\n", current_max_network, network_str);
+	// fflush(stderr);
+	// free(network_str);
+
+	memcpy(*network, current_max_network, id_n * sizeof(bool));
+
+	free(current_network);
+	free(next_network);
+	free(current_max_network);
+	return max_count;
+}
+
+static char * solve2(bool const * connect_matrix, size_t id_n, int const * ips) {
+	bool * max_network = assert_calloc(id_n, bool);
+	// bool * max_network = NULL;
+
+	int ips_test[2] = { hostname_to_ip("ab"), hostname_to_ip("bc") };
+	bool network_test[2] = { true, true };
+	char * test_str = get_network_password(ips_test, 2, network_test);
+	fprintf(stderr, "test: %s\n", test_str);
+	free(test_str);
+
+	int64_t max_network_count = get_max_network(connect_matrix, id_n, 0, 0, &max_network, ips);
+
+	char * result_str = get_network_password(ips, id_n, max_network);
+
+	free(max_network);
+	return result_str;
 }
 
 int main(int argc, char * argv[]) {
-	aoc_main_const_lines(argc, argv, 1, solve);
+	aoc_main_lines_to_str(argc, argv, 2, solve);
 }
