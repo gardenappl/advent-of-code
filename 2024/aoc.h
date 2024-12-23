@@ -174,6 +174,10 @@ inline size_t aoc_index_2d(size_t width, size_t x, size_t y) {
 	return width * y + x;
 }
 
+inline size_t aoc_index_3d(size_t x_size, size_t y_size, size_t x, size_t y, size_t z) {
+	return aoc_index_2d(x_size * y_size, aoc_index_2d(x_size, x, y), z);
+}
+
 #define aoc_check_bounds(matrix, x, y) \
 	((x) >= 0 && (y) >= 0 && (x) < (matrix).width && (y) < (matrix).height)
 #define aoc_div_ceil(a, b) \

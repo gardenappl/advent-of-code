@@ -13,10 +13,12 @@ typedef struct {
 
 #define MAX_MOVES_NUMERIC 6
 #define MAX_MOVES_DIR 4
+#define MAX_MOVES 6
+
 #define NUM_KEY_A 0xA
 #define DIR_KEY_A 4
-#define DIR_ROBOTS 2
-#define NUM_LEY_LENGTH 4
+#define DIR_KEYS 5
+#define NUM_STR_LENGTH 4
 
 typedef enum { BOTH, VH, HV } route_t;
 
@@ -42,13 +44,13 @@ static coords_t dir_pad[11] = {
 	(coords_t){ 2, 0 }, // A
 };
 
-static size_t get_dirs_for_key_pair_hv(char * dir_string, size_t i, coords_t * pad, size_t from, size_t to) {
+static void get_dirs_for_key_pair_hv(char * dir_string, coords_t * pad, size_t from, size_t to) {
 	int32_t from_x = pad[from].x;
 	int32_t from_y = pad[from].y;
 	int32_t to_x = pad[to].x;
 	int32_t to_y = pad[to].y;
 	
-	char * next = dir_string;
+	size_t i = 0;
 	while (from_x > to_x) {
 		dir_string[i] = aoc_dir4_chars[AOC_DIR4_LEFT];
 		++i;
@@ -72,15 +74,15 @@ static size_t get_dirs_for_key_pair_hv(char * dir_string, size_t i, coords_t * p
 	dir_string[i] = 'A';
 	++i;
 	dir_string[i] = '\0';
-	return i;
 }
 
-static size_t get_dirs_for_key_pair_vh(char * dir_string, size_t i, coords_t * pad, size_t from, size_t to) {
+static void get_dirs_for_key_pair_vh(char * dir_string, coords_t * pad, size_t from, size_t to) {
 	int32_t from_x = pad[from].x;
 	int32_t from_y = pad[from].y;
 	int32_t to_x = pad[to].x;
 	int32_t to_y = pad[to].y;
 	
+	size_t i = 0;
 	while (from_y > to_y) {
 		dir_string[i] = aoc_dir4_chars[AOC_DIR4_UP];
 		++i;
@@ -104,14 +106,13 @@ static size_t get_dirs_for_key_pair_vh(char * dir_string, size_t i, coords_t * p
 	dir_string[i] = 'A';
 	++i;
 	dir_string[i] = '\0';
-	return i;
 }
 
-static size_t numpad_char_to_pos(char c) {
+static size_t numpad_char_to_key(char c) {
 	return (c == 'A') ? NUM_KEY_A : (c - '0');
 }
 
-static size_t dirpad_char_to_pos(char c) {
+static size_t dirpad_char_to_key(char c) {
 	switch (c) {
 		case '^':
 			return AOC_DIR4_UP;
@@ -150,240 +151,118 @@ static route_t get_possible_routes_dirpad(size_t p1, size_t p2) {
 	return (x1 == x2 || y1 == y2) ? VH : BOTH;
 }
 
-static int64_t get_variants_count(char const * num_string, bool numpad) {
-	int64_t variants = 1;
-	size_t prev_pos = numpad ? NUM_KEY_A : DIR_KEY_A;
-	char c;
-	while ((c = *num_string)) {
-		size_t pos = numpad ? numpad_char_to_pos(c) : dirpad_char_to_pos(c);
-		if (numpad && get_possible_routes_numpad(prev_pos, pos) == BOTH)
-			variants *= 2;
-		else if (!numpad && get_possible_routes_dirpad(prev_pos, pos) == BOTH)
-			variants *= 2;
-		prev_pos = pos;
-		++num_string;
+static int64_t get_min_len_for_dir_str(char const * str, size_t dir_robots, int64_t * memo);
+
+static int64_t get_min_len_for_dir_pair(size_t d1, size_t d2, size_t dir_robots, int64_t * memo) {
+	size_t memo_i = aoc_index_3d(DIR_KEYS, DIR_KEYS, d1, d2, dir_robots);
+	int64_t result = memo[memo_i];
+	if (result)
+		return result;
+	char str[MAX_MOVES_DIR + 1];
+	switch (get_possible_routes_dirpad(d1, d2)) {
+		case BOTH:
+			get_dirs_for_key_pair_hv(str, dir_pad, d1, d2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
+
+			get_dirs_for_key_pair_vh(str, dir_pad, d1, d2);
+			result = aoc_min_int64_t(result, get_min_len_for_dir_str(str, dir_robots, memo));
+			break;
+		case VH:
+			get_dirs_for_key_pair_vh(str, dir_pad, d1, d2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
+			break;
+		case HV:
+			get_dirs_for_key_pair_hv(str, dir_pad, d1, d2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
+			break;
 	}
-	return variants;
+	memo[memo_i] = result;
+	return result;
 }
 
-typedef struct alt_dir_strings {
-	char * strings;
-	size_t buf_sizes;
-	size_t count;
-	size_t num;
-	struct alt_dir_strings * next_alts;
-} alt_dir_strings_t;
-
-static void get_dir_strings_for_dirpad_(char const * restrict last_string, size_t prev_pos, size_t str_i, alt_dir_strings_t * restrict alts) {
-	size_t str_num = alts->num;
-
-	char * string = alts->strings + aoc_index_2d(alts->buf_sizes, 0, str_num);
-
-	char key;
-	while ((key = *last_string)) {
-		size_t pos = dirpad_char_to_pos(key);
-		switch (get_possible_routes_dirpad(prev_pos, pos)) {
-			case BOTH:
-				++alts->num;
-				char * alt_string = alts->strings + aoc_index_2d(alts->buf_sizes, 0, alts->num);
-				strcpy(alt_string, string);
-
-				size_t alt_str_i = get_dirs_for_key_pair_hv(alt_string, str_i, dir_pad, prev_pos, pos);
-				get_dir_strings_for_dirpad_(last_string + 1, pos, alt_str_i, alts);
-				
-				// fallthrough
-			case VH:
-				str_i = get_dirs_for_key_pair_vh(string, str_i, dir_pad, prev_pos, pos);
-				break;
-			case HV:
-				str_i = get_dirs_for_key_pair_hv(string, str_i, dir_pad, prev_pos, pos);
-				break;
-		}
-		prev_pos = pos;
-		++last_string;
+static int64_t get_min_len_for_dir_str(char const * str, size_t dir_robots, int64_t * memo) {
+	if (dir_robots == 0) {
+		// fprintf(stderr, "min len of %s is %zu\n", str, strlen(str));
+		return strlen(str);
 	}
-}
 
-static void get_dir_strings_for_numpad_(char const * restrict num_string, size_t prev_pos, size_t str_i, alt_dir_strings_t * restrict alts) {
-	size_t str_num = alts->num;
-
-	char * string = alts->strings + aoc_index_2d(alts->buf_sizes, 0, str_num);
-
-	char key;
-	while ((key = *num_string)) {
-		size_t pos = numpad_char_to_pos(key);
-		switch (get_possible_routes_numpad(prev_pos, pos)) {
-			case BOTH:
-				++alts->num;
-				char * alt_string = alts->strings + aoc_index_2d(alts->buf_sizes, 0, alts->num);
-				strcpy(alt_string, string);
-
-				size_t alt_str_i = get_dirs_for_key_pair_hv(alt_string, str_i, numeric_pad, prev_pos, pos);
-				get_dir_strings_for_numpad_(num_string + 1, pos, alt_str_i, alts);
-				
-				// fallthrough
-			case VH:
-				str_i = get_dirs_for_key_pair_vh(string, str_i, numeric_pad, prev_pos, pos);
-				break;
-			case HV:
-				str_i = get_dirs_for_key_pair_hv(string, str_i, numeric_pad, prev_pos, pos);
-				break;
-		}
-		prev_pos = pos;
-		++num_string;
-	}
-}
-
-static alt_dir_strings_t get_dir_strings_for_numpad(char const * num_string) {
-	size_t variants = get_variants_count(num_string, true);
-	size_t buf_sizes = strlen(num_string) * MAX_MOVES_NUMERIC + 1;
-	fprintf(stderr, "%zu variants, buf size: %zu\n", variants, buf_sizes);
-
-	char * dir_strings = assert_calloc(variants * buf_sizes, char);
-	alt_dir_strings_t alts = {
-		.buf_sizes = buf_sizes,
-		.num = 0,
-		.count = variants,
-		.strings = dir_strings,
-		.next_alts = NULL
-	};
-	get_dir_strings_for_numpad_(num_string, NUM_KEY_A, 0, &alts);
-	assert(alts.num == alts.count - 1);
-	return alts;
-}
-
-
-static void debug_dir_execute(char const * dirpad_string, char * dirpad_output) {
-	int32_t x = dir_pad[DIR_KEY_A].x;
-	int32_t y = dir_pad[DIR_KEY_A].y;
-	char dirpad_key;
-	while ((dirpad_key = *dirpad_string)) {
-		size_t dirpad_pos;
-		switch (dirpad_key) {
-			case '^':
-				dirpad_pos = AOC_DIR4_UP;
-				break;
-			case '>':
-				dirpad_pos = AOC_DIR4_RIGHT;
-				break;
-			case 'v':
-				dirpad_pos = AOC_DIR4_DOWN;
-				break;
-			case '<':
-				dirpad_pos = AOC_DIR4_LEFT;
-				break;
-			default:
-				dirpad_pos = DIR_KEY_A;
-		}
-		if (dirpad_pos == DIR_KEY_A) {
-			for (size_t i = 0; i < 4; ++i) {
-				if (dir_pad[i].x == x && dir_pad[i].y == y) {
-					*dirpad_output = aoc_dir4_chars[i];
-					break;
-				}
-			}
-			if (dir_pad[DIR_KEY_A].x == x && dir_pad[DIR_KEY_A].y == y) {
-				*dirpad_output = 'A';
-			}
-			++dirpad_output;
-		} else {
-			x += aoc_dir4_x_diffs[dirpad_pos];
-			y += aoc_dir4_y_diffs[dirpad_pos];
-		}
-		++dirpad_string;
-	}
-	*dirpad_output = '\0';
-}
-
-static void get_dir_strings_for_dirpad_alts(alt_dir_strings_t * alts, size_t dir_robots) {
-	alts->next_alts = assert_malloc(alts->count, alt_dir_strings_t);
-
-	for (size_t i = 0; i < alts->count; ++i) {
-		char * dir_string = alts->strings + aoc_index_2d(alts->buf_sizes, 0, i);
-		size_t variants = get_variants_count(dir_string, false);
-		size_t buf_sizes = alts->buf_sizes * MAX_MOVES_DIR + 1;
-		fprintf(stderr, "%zu variants, buf size: %zu\n", variants, buf_sizes);
-
-		char * dir_strings = assert_calloc(variants * buf_sizes, char);
-		alt_dir_strings_t dir_alts = {
-			.buf_sizes = buf_sizes,
-			.num = 0,
-			.count = variants,
-			.strings = dir_strings,
-			.next_alts = NULL
-		};
-		get_dir_strings_for_dirpad_(dir_string, DIR_KEY_A, 0, &dir_alts);
-		assert(dir_alts.num == dir_alts.count - 1);
-		alts->next_alts[i] = dir_alts;
-
-		if (dir_robots > 1) {
-			get_dir_strings_for_dirpad_alts(&alts->next_alts[i], dir_robots - 1);
-		}
-	}
-}
-
-static void free_alts(alt_dir_strings_t alts, size_t level, size_t levels) {
-	// fprintf(stderr, "freeing %s\n", alts.strings);
-	free(alts.strings);
-	if (level < levels) {
-		for (size_t i = 0; i < alts.count; ++i) {
-			free_alts(alts.next_alts[i], level + 1, levels);
-		}
-		free(alts.next_alts);
-	}
-}
-
-static void fprint(alt_dir_strings_t alts, size_t level, size_t levels, FILE * file) {
-	for (size_t i = 0; i < alts.count; ++i) {
-		char * string = alts.strings + aoc_index_2d(alts.buf_sizes, 0, i);
-		for (size_t l = 0; l < level + 1; ++l)
-			fputs("  ", file);
-		fprintf(file, "* %s\n", string);
-
-		if (level < levels) {
-			fprint(alts.next_alts[i], level + 1, levels, file);
-		}
-	}
-}
-
-static int32_t min_length(alt_dir_strings_t alts, size_t level, size_t levels) {
-	int32_t min = INT32_MAX;
-	for (size_t i = 0; i < alts.count; ++i) {
-		if (level < levels) {
-			min = aoc_min_int32_t(min, min_length(alts.next_alts[i], level + 1, levels));
-		} else {
-			char * string = alts.strings + aoc_index_2d(alts.buf_sizes, 0, i);
-			min = aoc_min_int32_t(min, strlen(string));
-		}
-	}
-	return min;
-}
-
-
-static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
 	int64_t result = 0;
 
-	for (size_t i = 0; i < lines_n; ++i) {
-		if (line_lengths[i] != NUM_LEY_LENGTH) {
-			aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
-			return -1;
-		}
-		fprintf(stderr, "numpad string: '%s'\n", lines[i]);
+	size_t prev_key = DIR_KEY_A;
+	char const * s = str;
+	char c;
+	while ((c = *s)) {
+		size_t key = dirpad_char_to_key(c);
+		result += get_min_len_for_dir_pair(prev_key, key, dir_robots - 1, memo);
+		prev_key = key;
+		++s;
+	}
+	// fprintf(stderr, "min len of %s (%zu robots!) is %zu\n", str, dir_robots, result);
+	return result;
+}
 
-		alt_dir_strings_t alts = get_dir_strings_for_numpad(lines[i]);
-		get_dir_strings_for_dirpad_alts(&alts, DIR_ROBOTS);
 
-		fprint(alts, 0, DIR_ROBOTS, stderr);
+static int64_t get_min_len_for_num_str(char const * str, size_t dir_robots, int64_t * memo);
 
-		int32_t min = min_length(alts, 0, DIR_ROBOTS);
-		fprintf(stderr, "min: %"PRId32"\n", min);
-		result += min * atoi(lines[i]);
+static int64_t get_min_len_for_num_pair(size_t n1, size_t n2, size_t dir_robots, int64_t * memo) {
+	int64_t result;
+	char str[MAX_MOVES_NUMERIC + 1];
+	switch (get_possible_routes_numpad(n1, n2)) {
+		case BOTH:
+			get_dirs_for_key_pair_hv(str, numeric_pad, n1, n2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
 
-		free_alts(alts, 0, DIR_ROBOTS);
+			get_dirs_for_key_pair_vh(str, numeric_pad, n1, n2);
+			result = aoc_min_int64_t(result, get_min_len_for_dir_str(str, dir_robots, memo));
+			break;
+		case VH:
+			get_dirs_for_key_pair_vh(str, numeric_pad, n1, n2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
+			break;
+		case HV:
+			get_dirs_for_key_pair_hv(str, numeric_pad, n1, n2);
+			result = get_min_len_for_dir_str(str, dir_robots, memo);
+			break;
 	}
 	return result;
 }
 
+static int64_t get_min_len_for_num_str(char const * str, size_t dir_robots, int64_t * memo) {
+	int64_t result = 0;
+
+	size_t prev_key = NUM_KEY_A;
+	char const * s = str;
+	char c;
+	while ((c = *s)) {
+		size_t key = numpad_char_to_key(c);
+		result += get_min_len_for_num_pair(prev_key, key, dir_robots, memo);
+		prev_key = key;
+		++s;
+	}
+	return result;
+}
+
+
+static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
+	size_t dir_robots = (part == 1) ? 2 : 25;
+	int64_t result = 0;
+
+	int64_t * memo = assert_calloc(DIR_KEYS * DIR_KEYS * dir_robots, int64_t);
+
+	for (size_t i = 0; i < lines_n; ++i) {
+		if (line_lengths[i] != NUM_STR_LENGTH) {
+			aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE);
+			return -1;
+		}
+		fprintf(stderr, "numpad string: '%s'\n", lines[i]);
+		int64_t min_len = get_min_len_for_num_str(lines[i], dir_robots, memo);
+		fprintf(stderr, "min len: %"PRId64"\n", min_len);
+		result += min_len * atoi(lines[i]);
+	}
+	free(memo);
+	return result;
+}
+
 int main(int argc, char * argv[]) {
-	aoc_main_const_lines(argc, argv, 1, solve);
+	aoc_main_const_lines(argc, argv, 2, solve);
 }

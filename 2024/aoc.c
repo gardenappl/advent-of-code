@@ -174,6 +174,7 @@ AOC_DEFINE_HELPERS_FOR(int64_t)
 
 
 extern size_t aoc_index_2d(size_t width, size_t x, size_t y);
+inline size_t aoc_index_3d(size_t x_size, size_t y_size, size_t x, size_t y, size_t z);
 
 
 /*
