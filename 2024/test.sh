@@ -12,9 +12,11 @@ if [ -z "$2" ]; then
 	for day in $(seq 1 "$days"); do
 		input="day${day}.txt"
 		gcc aoc.c "day${day}.c" -march=native -O2 -Wall -std=c11 -o prog 
+		echo "Compiled."
+		read -r _
 		time ./prog "$input"
 		echo "Day ${day} done."
-		read -r _
+		# read -r _
 	done
 else
 	day="$1"

@@ -99,11 +99,6 @@ static struct aoc_ex * make_ex_if_needed(struct aoc_ex ** e, int exit_code) {
 }
 
 void aoc_throw_(struct aoc_ex ** e, int code, char const * msg) {
-	if (!e) {
-		// don't report exception, just exit
-		return;
-	} 
-	// fprintf(stderr, "'%s' %i %p\n", msg, code, e);
 	struct aoc_ex * exception = make_ex_if_needed(e, code);
 	exception->code = code;
 	exception->error_msg = (char *)msg;
@@ -120,14 +115,6 @@ aoc_err_t * aoc_ex_to_err(struct aoc_ex ** e) {
 }
 
 bool err_then_aoc_throw(aoc_err_t ** e, aoc_err_t * err) {
-	if (!e) {
-		// don't report exception, just exit (if needed)
-		if (err) {
-			free(err);
-			return true;
-		}
-		return false;
-	}
 	if (*e == err)
 		return true;
 
