@@ -172,95 +172,43 @@ static char * get_network_password(int const * ips, size_t id_n, bool const * ne
 
 static size_t get_max_network(bool const * restrict connect_matrix, size_t id_n, size_t start_id, size_t current_count, bool ** restrict network, int const * ips) {
 	if (start_id == id_n) {
-		// char * network_str = get_network_password(ips, id_n, *network);
-		// fprintf(stderr, "final network (%p): %s (count: %zu)\n", *network, network_str, current_count);
-		// free(network_str);
 		return current_count;
 	}
 
 	size_t max_count = current_count;
-	bool * current_network = assert_malloc(id_n, bool);
-	memcpy(current_network, *network, id_n * sizeof(bool));
 	bool * next_network = assert_malloc(id_n, bool);
-	bool * current_max_network = assert_malloc(id_n, bool);
-	memcpy(current_max_network, current_network, id_n * sizeof(bool));
+	bool * max_network = assert_malloc(id_n, bool);
+	memcpy(max_network, *network, id_n * sizeof(bool));
 
-
-	// char * network_str = get_network_password(ips, id_n, current_network);
-	// fprintf(stderr, "network (%p): %s\n", current_network, network_str);
-	// free(network_str);
 
 	for (size_t id = start_id; id < id_n; ++id) {
 		for (size_t net_id = 0; net_id < start_id; ++net_id) {
-			if (current_network[net_id] && !connect_matrix[aoc_index_2d(id_n, net_id, id)])
+			if ((*network)[net_id] && !connect_matrix[aoc_index_2d(id_n, net_id, id)])
 				goto continue_next_id;
 		}
-		// fprintf(stderr, "ID: %zu out of %zu\n", id, id_n);
-
-		memcpy(next_network, current_network, id_n * sizeof(bool));
+		memcpy(next_network, *network, id_n * sizeof(bool));
 		next_network[id] = true;
-
-		// network_str = get_network_password(ips, id_n, next_network);
-		// fprintf(stderr, "next network (%p): %s\n", next_network, network_str);
-		// fflush(stderr);
-		// free(network_str);
 
 		size_t count = get_max_network(connect_matrix, id_n, id + 1, current_count + 1, &next_network, ips);
 		if (count > max_count) {
-			// fprintf(stderr, "swapping (count: %zu)\n", count);
-			// network_str = get_network_password(ips, id_n, next_network);
-			// fprintf(stderr, ".next network (%p): %s\n", next_network, network_str);
-			// free(network_str);
-			// network_str = get_network_password(ips, id_n, current_max_network);
-			// fprintf(stderr, ".current max network (%p): %s\n", current_max_network, network_str);
-			// fflush(stderr);
-			// free(network_str);
-
-			// memcpy(max_network_, next_network, id_n * sizeof(bool));
-			bool * swap = current_max_network;
-			current_max_network = next_network;
-			next_network = swap;
-
-			// fprintf(stderr, "now\n");
-			// network_str = get_network_password(ips, id_n, next_network);
-			// fprintf(stderr, ".next network (%p): %s\n", next_network, network_str);
-			// free(network_str);
-			// network_str = get_network_password(ips, id_n, current_max_network);
-			// fprintf(stderr, ".current max network (%p): %s\n", current_max_network, network_str);
-			// fflush(stderr);
-			// free(network_str);
-
 			max_count = count;
-		}
 
-		// network_str = get_network_password(ips, id_n, current_max_network);
-		// fprintf(stderr, "current max network now (%p): %s\n", current_max_network, network_str);
-		// fflush(stderr);
-		// free(network_str);
+			bool * swap = max_network;
+			max_network = next_network;
+			next_network = swap;
+		}
 continue_next_id:;
 	}
-	// network_str = get_network_password(ips, id_n, current_max_network);
-	// fprintf(stderr, "current max network finally (%p): %s\n", current_max_network, network_str);
-	// fflush(stderr);
-	// free(network_str);
 
-	memcpy(*network, current_max_network, id_n * sizeof(bool));
+	memcpy(*network, max_network, id_n * sizeof(bool));
 
-	free(current_network);
 	free(next_network);
-	free(current_max_network);
+	free(max_network);
 	return max_count;
 }
 
 static char * solve2(bool const * connect_matrix, size_t id_n, int const * ips) {
 	bool * max_network = assert_calloc(id_n, bool);
-	// bool * max_network = NULL;
-
-	int ips_test[2] = { hostname_to_ip("ab"), hostname_to_ip("bc") };
-	bool network_test[2] = { true, true };
-	char * test_str = get_network_password(ips_test, 2, network_test);
-	fprintf(stderr, "test: %s\n", test_str);
-	free(test_str);
 
 	int64_t max_network_count = get_max_network(connect_matrix, id_n, 0, 0, &max_network, ips);
 
