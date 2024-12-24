@@ -178,9 +178,8 @@ static size_t get_max_network(bool const * restrict connect_matrix, size_t id_n,
 	size_t max_count = current_count;
 	bool * next_network = assert_malloc(id_n, bool);
 	bool * max_network = assert_malloc(id_n, bool);
-	memcpy(max_network, *network, id_n * sizeof(bool));
 
-
+	bool new_max_network = false;
 	for (size_t id = start_id; id < id_n; ++id) {
 		for (size_t net_id = 0; net_id < start_id; ++net_id) {
 			if ((*network)[net_id] && !connect_matrix[aoc_index_2d(id_n, net_id, id)])
@@ -192,6 +191,7 @@ static size_t get_max_network(bool const * restrict connect_matrix, size_t id_n,
 		size_t count = get_max_network(connect_matrix, id_n, id + 1, current_count + 1, &next_network, ips);
 		if (count > max_count) {
 			max_count = count;
+			new_max_network = true;
 
 			bool * swap = max_network;
 			max_network = next_network;
@@ -200,7 +200,8 @@ static size_t get_max_network(bool const * restrict connect_matrix, size_t id_n,
 continue_next_id:;
 	}
 
-	memcpy(*network, max_network, id_n * sizeof(bool));
+	if (new_max_network)
+		memcpy(*network, max_network, id_n * sizeof(bool));
 
 	free(next_network);
 	free(max_network);

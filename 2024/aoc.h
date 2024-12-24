@@ -40,6 +40,33 @@
  */
 #define GET_MACRO(_1,_2,_3,_4,NAME,...) NAME
 
+#define AOC_ASSERT_SANE_ENCODING \
+	static_assert('b' - 'a' == 1, "insane encoding"); \
+	static_assert('c' - 'a' == 2, "insane encoding"); \
+	static_assert('d' - 'a' == 3, "insane encoding"); \
+	static_assert('e' - 'a' == 4, "insane encoding"); \
+	static_assert('f' - 'a' == 5, "insane encoding"); \
+	static_assert('g' - 'a' == 6, "insane encoding"); \
+	static_assert('h' - 'a' == 7, "insane encoding"); \
+	static_assert('i' - 'a' == 8, "insane encoding"); \
+	static_assert('j' - 'a' == 9, "insane encoding"); \
+	static_assert('k' - 'a' == 10, "insane encoding"); \
+	static_assert('l' - 'a' == 11, "insane encoding"); \
+	static_assert('m' - 'a' == 12, "insane encoding"); \
+	static_assert('n' - 'a' == 13, "insane encoding"); \
+	static_assert('o' - 'a' == 14, "insane encoding"); \
+	static_assert('p' - 'a' == 15, "insane encoding"); \
+	static_assert('q' - 'a' == 16, "insane encoding"); \
+	static_assert('r' - 'a' == 17, "insane encoding"); \
+	static_assert('s' - 'a' == 18, "insane encoding"); \
+	static_assert('t' - 'a' == 19, "insane encoding"); \
+	static_assert('u' - 'a' == 20, "insane encoding"); \
+	static_assert('v' - 'a' == 21, "insane encoding"); \
+	static_assert('w' - 'a' == 22, "insane encoding"); \
+	static_assert('x' - 'a' == 23, "insane encoding"); \
+	static_assert('y' - 'a' == 24, "insane encoding"); \
+	static_assert('z' - 'a' == 25, "insane encoding");
+
 
 
 /*
@@ -104,6 +131,15 @@ void aoc_err(aoc_err_t * err, char const * err_msg);
  */
 bool aoc_is_err(aoc_err_t * err);
 
+
+/**
+ * Exception handling.
+ * Sets e to an error, using AOC_MSG_INVALID_FILE as the error message.
+ * Uses the AOC_EX_DATA_ERR error code.
+ * The caller should clean up after themselves and return.
+ */
+#define aoc_throw_invalid_file(e) \
+	aoc_throw(e, AOC_EX_DATA_ERR, AOC_MSG_INVALID_FILE)
 
 /**
  * Exception handling.
