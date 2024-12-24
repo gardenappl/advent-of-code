@@ -9,7 +9,7 @@
 #define ALPHANUMS 36
 #define WIRES_COUNT (ALPHANUMS * ALPHANUMS * ALPHANUMS)
 
-
+AOC_ASSERT_NULL_IS_ZERO
 AOC_ASSERT_SANE_ENCODING
 
 
@@ -27,7 +27,7 @@ typedef struct gate {
 	struct gate * next_right_in;
 } gate_t;
 
-typedef enum : char { VAL_NOT_INIT = 0, VAL_EMPTY, VAL_FALSE, VAL_TRUE } wire_val_t;
+typedef enum : char { VAL_EMPTY = 0, VAL_FALSE, VAL_TRUE } wire_val_t;
 
 typedef struct {
 	wire_val_t value;
@@ -154,8 +154,6 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 			wires[wire_num].value = VAL_TRUE;
 		else
 			wires[wire_num].value = VAL_FALSE;
-		wires[wire_num].next_left_in = NULL;
-		wires[wire_num].next_right_in = NULL;
 
 		++line_i;
 	}
@@ -213,23 +211,11 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 			*gates = gate;
 			gates->next = next_gate;
 
-			if (wires[gate.left_in].value == VAL_NOT_INIT) {
-				wires[gate.left_in].value = VAL_EMPTY;
-				wires[gate.left_in].next_left_in = gates;
-				gates->next_left_in = NULL;
-			} else {
-				gates->next_left_in = wires[gate.left_in].next_left_in;
-				wires[gate.left_in].next_left_in = gates;
-			}
+			gates->next_left_in = wires[gate.left_in].next_left_in;
+			wires[gate.left_in].next_left_in = gates;
 
-			if (wires[gate.right_in].value == VAL_NOT_INIT) {
-				wires[gate.right_in].value = VAL_EMPTY;
-				wires[gate.right_in].next_right_in = gates;
-				gates->next_right_in = NULL;
-			} else {
-				gates->next_right_in = wires[gate.right_in].next_right_in;
-				wires[gate.right_in].next_right_in = gates;
-			}
+			gates->next_right_in = wires[gate.right_in].next_right_in;
+			wires[gate.right_in].next_right_in = gates;
 		}
 
 continue_next_line:
@@ -255,11 +241,8 @@ continue_next_line:
 				wire_num_to_name(z_wire, z_wire_str);
 				fprintf(stderr, "%s is FALSE\n", z_wire_str);
 				break;
-			case VAL_NOT_INIT:
-				goto end_bits;
 			default:
-				aoc_throw_fail(e, "empty value for z wire!");
-				goto cleanup;
+				goto end_bits;
 		}
 	}
 end_bits:;

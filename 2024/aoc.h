@@ -68,6 +68,10 @@
 	static_assert('z' - 'a' == 25, "insane encoding");
 
 
+#define AOC_ASSERT_NULL_IS_ZERO \
+	static_assert((size_t)(NULL + 1) == 1, "null is non-zero");
+
+
 
 /*
  *
