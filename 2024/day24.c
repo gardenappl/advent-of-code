@@ -8,31 +8,39 @@
 
 #define ALPHANUMS 36
 #define WIRES_COUNT (ALPHANUMS * ALPHANUMS * ALPHANUMS)
+#define END -1
 
 AOC_ASSERT_SANE_ENCODING
 
 
 typedef enum : char { AND, OR, XOR } gate_op_t;
 
-typedef struct gate {
+
+typedef struct {
 	int left_in;
 	int right_in;
 	gate_op_t op;
 	int out;
 
-	// pointers to next unsolved gates
-	ptrdiff_t next_left_in;
-	ptrdiff_t next_right_in;
+	int next_unsolved_left;
+	int next_unsolved_right;
 } gate_t;
 
-typedef enum : char { VAL_NOT_INIT = 0, VAL_EMPTY, VAL_FALSE, VAL_TRUE } wire_val_t;
 
 typedef struct {
-	wire_val_t value;
-	// pointers to next unsolved gates
-	ptrdiff_t next_left_in;
-	ptrdiff_t next_right_in;
-} wire_t;
+	bool has_value;
+	bool exists;
+
+	int next_unsolved_left;
+	int next_unsolved_right;
+} wire_sort_t;
+
+
+static void init(wire_sort_t * wire_sort) {
+	wire_sort->exists = true;
+	wire_sort->next_unsolved_left = END;
+	wire_sort->next_unsolved_right = END;
+}
 
 
 static void wire_num_to_name(int num, char name[4]) {
@@ -45,109 +53,31 @@ static void wire_num_to_name(int num, char name[4]) {
 }
 
 
-static void fprint(gate_t gate) {
+static void fprint(gate_t gate, FILE * file) {
 	char left_in[4];
 	wire_num_to_name(gate.left_in, left_in);
 	char right_in[4];
 	wire_num_to_name(gate.right_in, right_in);
 	char out[4];
 	wire_num_to_name(gate.out, out);
-	fprintf(stderr, "%s %s %s -> %s", 
+	fprintf(file, "%s %s %s -> %s", 
 			left_in, 
 			(gate.op == AND) ? "AND": ((gate.op == OR) ? "OR": "XOR"), 
 			right_in,
 			out);
 }
 
-static bool try_eval(wire_t * wires, gate_t * gates, size_t i) {
-	gate_t gate = gates[i];
-	bool left_in;
-	switch (wires[gate.left_in].value) {
-		case VAL_FALSE:
-			left_in = false;
-			break;
-		case VAL_TRUE:
-			left_in = true;
-			break;
-		default:
-			return false;
-	}
-	bool right_in;
-	switch (wires[gate.right_in].value) {
-		case VAL_FALSE:
-			right_in = false;
-			break;
-		case VAL_TRUE:
-			right_in = true;
-			break;
-		default:
-			return false;
-	}
-	bool out;
-	switch (gate.op) {
-		case AND:
-			out = left_in && right_in;
-			break;
-		case OR:
-			out = left_in || right_in;
-			break;
-		case XOR:
-			out = left_in ^ right_in;
-			break;
-	}
-
-	bool out_wire_init = wires[gate.out].value != VAL_NOT_INIT;
-	wires[gate.out].value = out ? VAL_TRUE : VAL_FALSE;
-	
-	fprint(gate);
-	if (out)
-		fputs(" (= TRUE)\n", stderr);
-	else
-		fputs(" (= FALSE)\n", stderr);
-
-	if (!out_wire_init)
-		return true;
-
-	ptrdiff_t * in_gate_i = &(wires[gate.out].next_left_in);
-	while (*in_gate_i != -1) {
-		fprint(gates[*in_gate_i]);
-		fprintf(stderr, " - gate (i = %zd)\n", *in_gate_i);
-		if (try_eval(wires, gates, *in_gate_i)) {
-			fprint(gates[*in_gate_i]);
-			fprintf(stderr, " - removing\n");
-			// remove gate from next_left chain
-			*in_gate_i = gates[*in_gate_i].next_left_in;
-		} else {
-			// skip to next gate
-			in_gate_i = &(gates[*in_gate_i].next_left_in);
-		}
-	}
-
-	in_gate_i = &(wires[gate.out].next_right_in);
-	while (*in_gate_i != -1) {
-		if (try_eval(wires, gates, *in_gate_i)) {
-			fprint(gates[*in_gate_i]);
-			fprintf(stderr, " - removing\n");
-			// remove gate from next_right chain
-			*in_gate_i = gates[*in_gate_i].next_right_in;
-		} else {
-			// skip to next gate
-			in_gate_i = &(gates[*in_gate_i].next_right_in);
-		}
-	}
-
-	return true;
-}
-
 static void parse_gates(char const * const * lines, size_t const * line_lengths, size_t n, 
-		gate_t * gates, wire_t * wires, aoc_ex_t * e);
-static void sort_gates(gate_t * gates, size_t n, wire_t * wires);
-static void eval_gates(gate_t * gates, size_t n, wire_t * wires);
+		gate_t * gates, wire_sort_t * wires, aoc_ex_t * e);
+
+static void sort_gates(gate_t * in_gates, gate_t * out_gates, size_t n, wire_sort_t * wires);
+
+static void eval_gates(gate_t * gates, size_t gates_n, bool * wires);
 
 
 static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
-	wire_t * wires = assert_calloc(WIRES_COUNT, wire_t);
-	fprintf(stderr, "%zu\n", sizeof(wire_t));
+	wire_sort_t * wires_sort = assert_calloc(WIRES_COUNT, wire_sort_t);
+	bool * wire_values = assert_calloc(WIRES_COUNT, bool);
 
 	size_t line_i = 0;
 	while (line_i < lines_n && line_lengths[line_i] == 6) {
@@ -158,12 +88,11 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 			goto cleanup_wires;
 		}
 
+		init(&(wires_sort[wire_num]));
+		wires_sort[wire_num].has_value = true;
+
 		if (lines[line_i][5] == '1')
-			wires[wire_num].value = VAL_TRUE;
-		else
-			wires[wire_num].value = VAL_FALSE;
-		wires[wire_num].next_left_in = -1;
-		wires[wire_num].next_right_in = -1;
+			wire_values[wire_num] = true;
 
 		++line_i;
 	}
@@ -176,13 +105,15 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 	}
 	size_t gates_n = lines_n - line_i;
 	gate_t * gates = assert_malloc(gates_n, gate_t);
+	gate_t * gates_sorted = assert_malloc(gates_n, gate_t);
 
-	parse_gates(lines + line_i, line_lengths + line_i, gates_n, gates, wires, e);
+	parse_gates(lines + line_i, line_lengths + line_i, gates_n, gates, wires_sort, e);
 	if (*e) {
 		goto cleanup;
 	}
+	sort_gates(gates, gates_sorted, gates_n, wires_sort);
 
-	// sort_gates(gates, gates_n, wires);
+	eval_gates(gates_sorted, gates_n, wire_values);
 
 	int64_t result = 0;
 	int z00_wire = (ALPHANUMS - 1) * ALPHANUMS * ALPHANUMS;
@@ -193,31 +124,30 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 
 	for (int bit = 0; bit < 64; ++bit) {
 		int z_wire = z00_wire + (bit / 10) * ALPHANUMS + (bit % 10);
-		switch (wires[z_wire].value) {
-			case VAL_TRUE:
-				wire_num_to_name(z_wire, z_wire_str);
-				fprintf(stderr, "%s is TRUE\n", z_wire_str);
-				result |= (1L << bit);
-				break;
-			case VAL_FALSE:
-				wire_num_to_name(z_wire, z_wire_str);
-				fprintf(stderr, "%s is FALSE\n", z_wire_str);
-				break;
-			default:
-				goto end_bits;
+
+		if (!wires_sort[z_wire].exists)
+			break;
+
+		if (wire_values[z_wire]) {
+			wire_num_to_name(z_wire, z_wire_str);
+			fprintf(stderr, "%s is TRUE\n", z_wire_str);
+			result |= (1L << bit);
+		} else {
+			wire_num_to_name(z_wire, z_wire_str);
+			fprintf(stderr, "%s is FALSE\n", z_wire_str);
 		}
 	}
-end_bits:;
 
 cleanup:;
 	free(gates);
 cleanup_wires:
-	free(wires);
+	free(wires_sort);
+	free(wire_values);
 	return result;
 }
 
 static void parse_gates(char const * const * lines, size_t const * line_lengths, size_t n, 
-		gate_t * gates, wire_t * wires, aoc_ex_t * e) {
+		gate_t * gates, wire_sort_t * wires, aoc_ex_t * e) {
 	size_t i = 0;
 	do {
 		if (line_lengths[i] < 17) {
@@ -228,7 +158,10 @@ static void parse_gates(char const * const * lines, size_t const * line_lengths,
 		gate_t gate = {
 			.left_in = strtoul(lines[i], NULL, ALPHANUMS),
 			.right_in = strtoul(lines[i] + 7, NULL, ALPHANUMS),
-			.out = strtoul(lines[i] + 14, NULL, ALPHANUMS)
+			.out = strtoul(lines[i] + 14, NULL, ALPHANUMS),
+
+			.next_unsolved_left = END,
+			.next_unsolved_right = END
 		};
 		char const * op_str = lines[i] + 4;
 		if (strncmp(op_str, "AND", 3) == 0) {
@@ -248,32 +181,107 @@ static void parse_gates(char const * const * lines, size_t const * line_lengths,
 
 		gates[i] = gate;
 
-		if (!try_eval(wires, gates, i)) {
-			fprint(gate);
-			fprintf(stderr, " - storing for later...\n");
-			if (wires[gate.left_in].value == VAL_NOT_INIT) {
-				wires[gate.left_in].value = VAL_EMPTY;
-				wires[gate.left_in].next_left_in = i;
-				wires[gate.left_in].next_right_in = -1;
-				gates[i].next_left_in = -1;
-			} else {
-				gates[i].next_left_in = wires[gate.left_in].next_left_in;
-				wires[gate.left_in].next_left_in = i;
-			}
+		if (!wires[gate.left_in].exists)
+			init(&(wires[gate.left_in]));
 
-			if (wires[gate.right_in].value == VAL_NOT_INIT) {
-				wires[gate.right_in].value = VAL_EMPTY;
-				wires[gate.right_in].next_left_in = -1;
-				wires[gate.right_in].next_right_in = i;
-				gates[i].next_right_in = -1;
-			} else {
-				gates[i].next_right_in = wires[gate.right_in].next_right_in;
-				wires[gate.right_in].next_right_in = i;
-			}
-		}
+		if (!wires[gate.right_in].exists)
+			init(&(wires[gate.right_in]));
+
+		if (!wires[gate.out].exists)
+			init(&(wires[gate.out]));
 
 		++i;
 	} while (i < n);
+}
+
+static bool sort_(gate_t * restrict in_gates, int in_i,
+		gate_t * restrict out_gates, int * restrict out_i, wire_sort_t * restrict wires) {
+	gate_t gate = in_gates[in_i];
+
+	fprint(gate, stderr);
+	if (wires[gate.left_in].has_value && wires[gate.right_in].has_value) {
+		fputs("...has value now\n", stderr);
+
+		out_gates[*out_i] = gate;
+		++*out_i;
+		
+		wires[gate.out].has_value = true;
+		
+		// Try to resolve all gates that we can
+
+		int * next = &(wires[gate.out].next_unsolved_left);
+		while (*next != END) {
+			if (sort_(in_gates, *next, out_gates, out_i, wires)) {
+				// remove gate from next* chain
+				*next = in_gates[*next].next_unsolved_left;
+			} else {
+				// continue to next gate
+				next = &(in_gates[*next].next_unsolved_left);
+			}
+		}
+
+		next = &(wires[gate.out].next_unsolved_right);
+		while (*next != END) {
+			if (sort_(in_gates, *next, out_gates, out_i, wires)) {
+				// remove gate from next* chain
+				*next = in_gates[*next].next_unsolved_right;
+			} else {
+				// continue to next gate
+				next = &(in_gates[*next].next_unsolved_right);
+			}
+		}
+		return true;
+	} else {
+		fputs("...will be resolved later\n", stderr);
+		return false;
+	}
+}
+
+static void sort_gates(gate_t * restrict in_gates, gate_t * restrict out_gates, size_t n, wire_sort_t * wires) {
+	int out_i = 0;
+
+	for (size_t i = 0; i < n; ++i) {
+		bool resolved_now = sort_(in_gates, i, out_gates, &out_i, wires);
+
+		if (!resolved_now) {
+			gate_t * gate = &in_gates[i];
+
+			// Add gate to be resolved later
+			if (wires[gate->left_in].next_unsolved_left != END) {
+				gate->next_unsolved_left = wires[gate->left_in].next_unsolved_left;
+			}
+			wires[gate->left_in].next_unsolved_left = i;
+
+			if (wires[gate->right_in].next_unsolved_right != END) {
+				gate->next_unsolved_right = wires[gate->right_in].next_unsolved_right;
+			}
+			wires[gate->right_in].next_unsolved_right = i;
+		}
+	}
+	fprintf(stderr, "out gates: %d, gates total: %zu\n", out_i, n);
+	// assert(out_i == n);
+}
+
+static void eval_gates(gate_t * gates, size_t gates_n, bool * wires) {
+	for (size_t i = 0; i < gates_n; ++i) {
+		gate_t gate = gates[i];
+
+		bool left_in = wires[gate.left_in];
+		bool right_in = wires[gate.right_in];
+		bool out;
+		switch (gate.op) {
+			case AND:
+				out = left_in && right_in;
+				break;
+			case OR:
+				out = left_in || right_in;
+				break;
+			case XOR:
+				out = left_in ^ right_in;
+				break;
+		}
+		wires[gate.out] = out;
+	}
 }
 
 
