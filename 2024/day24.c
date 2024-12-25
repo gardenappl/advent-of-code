@@ -11,6 +11,8 @@
 #define WIRE_NAME_LEN 3
 #define WIRE_NAME_LEN_S AOC_STR(WIRE_NAME_LEN)
 
+#define MSG_NO_OP "did not find gate with expected op"
+
 
 AOC_ASSERT_SANE_ENCODING
 
@@ -25,6 +27,24 @@ typedef struct {
 	int out;
 } gate_t;
 
+
+typedef struct {
+	gate_t gate;
+
+	bool has_next_left;
+	int next_left;
+
+	bool has_next_right;
+	int next_right;
+} gate_list_t;
+
+typedef struct {
+	bool has_next_left;
+	int next_left;
+
+	bool has_next_right;
+	int next_right;
+} wire_list_t;
 
 
 static void wire_num_to_name(int num, char name[4]) {
@@ -106,7 +126,51 @@ static bool eval_gate(int out_wire, gate_t * gates, wire_val_t * wires, aoc_ex_t
 	return out;
 }
 
-static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
+
+static int parse_wire(char const * line, wire_val_t * wires, aoc_ex_t * e) {
+	char wire_name[WIRE_NAME_LEN + 1];
+	char value;
+	if (sscanf(line, "%"WIRE_NAME_LEN_S"s: %c", wire_name, &value) != 2) {
+		aoc_throw_invalid_file(e);
+		return -1;
+	}
+	int wire_num = strtoul(wire_name, NULL, ALPHANUMS);
+	// fprintf(stderr, "wire: %s value: %d\n", wire_name, wire_num);
+	if (wires) {
+		if (value == '1')
+			wires[wire_num] = WIRE_TRUE;
+		else
+			wires[wire_num] = WIRE_FALSE;
+	}
+	return wire_num;
+}
+
+static gate_t parse_gate(char const * line, aoc_ex_t * e) {
+	char left_wire_name[WIRE_NAME_LEN + 1];
+	char op_name[3 + 1];
+	char right_wire_name[WIRE_NAME_LEN + 1];
+	char out_wire_name[WIRE_NAME_LEN + 1];
+	if (sscanf(line, "%"WIRE_NAME_LEN_S"s %3s %"WIRE_NAME_LEN_S"s -> %"WIRE_NAME_LEN_S"s",
+				left_wire_name, op_name, right_wire_name, out_wire_name) != 4) {
+		aoc_throw_invalid_file(e);
+		return (gate_t){ 0 };
+	}
+	return (gate_t){
+		.left_in = strtoul(left_wire_name, NULL, ALPHANUMS),
+		.right_in = strtoul(right_wire_name, NULL, ALPHANUMS),
+		.op = (op_name[0] == 'A') ? OP_AND : ((op_name[0] == 'O') ? OP_OR : OP_XOR),
+		.out = strtoul(out_wire_name, NULL, ALPHANUMS)
+	};
+}
+
+
+static int get_bit_wire(char c, int bit) {
+	char wire_name[4] = { c, (bit / 10) + '0', (bit % 10) + '0', '\0' };
+	return strtoul(wire_name, NULL, ALPHANUMS);
+}
+
+
+static int64_t solve1(char const * const * lines, size_t lines_n, size_t const * line_lengths, aoc_ex_t * e) {
 	int64_t result = 0;
 
 	wire_val_t * wires = assert_calloc(WIRES_COUNT, wire_val_t);
@@ -116,48 +180,25 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 	for (; line_i < lines_n; ++line_i) {
 		if (line_lengths[line_i] != 6)
 			break;
-
-		char wire_name[WIRE_NAME_LEN + 1];
-		char value;
-		if (sscanf(lines[line_i], "%"WIRE_NAME_LEN_S"s: %c", wire_name, &value) != 2) {
-			aoc_throw_invalid_file(e);
+		parse_wire(lines[line_i], wires, e);
+		if (*e)
 			goto cleanup;
-		}
-		int wire_num = strtoul(wire_name, NULL, ALPHANUMS);
-		// fprintf(stderr, "wire: %s value: %d\n", wire_name, wire_num);
-		if (value == '1')
-			wires[wire_num] = WIRE_TRUE;
-		else
-			wires[wire_num] = WIRE_FALSE;
 	}
 
 	// skip empty line
 	++line_i;
 
 	for (; line_i < lines_n; ++line_i) {
-		char left_wire_name[WIRE_NAME_LEN + 1];
-		char op_name[3 + 1];
-		char right_wire_name[WIRE_NAME_LEN + 1];
-		char out_wire_name[WIRE_NAME_LEN + 1];
-		if (sscanf(lines[line_i], "%"WIRE_NAME_LEN_S"s %3s %"WIRE_NAME_LEN_S"s -> %"WIRE_NAME_LEN_S"s",
-					left_wire_name, op_name, right_wire_name, out_wire_name) != 4) {
-			aoc_throw_invalid_file(e);
+		gate_t gate = parse_gate(lines[line_i], e);
+		if (*e)
 			goto cleanup;
-		}
-		gate_t gate = {
-			.left_in = strtoul(left_wire_name, NULL, ALPHANUMS),
-			.right_in = strtoul(right_wire_name, NULL, ALPHANUMS),
-			.op = (op_name[0] == 'A') ? OP_AND : ((op_name[0] == 'O') ? OP_OR : OP_XOR),
-			.out = strtoul(out_wire_name, NULL, ALPHANUMS)
-		};
 		fprint_gate(gate, stderr);
 		fputc('\n', stderr);
 		gates[gate.out] = gate;
 	}
 
-	int z00_wire = (ALPHANUMS - 1) * ALPHANUMS * ALPHANUMS;
 	for (int z_bit = 0; z_bit < 63; ++z_bit) {
-		int z_wire = z00_wire + (z_bit / 10) * ALPHANUMS + (z_bit % 10);
+		int z_wire = get_bit_wire('z', z_bit);
 
 		char z_wire_name[4];
 		wire_num_to_name(z_wire, z_wire_name);
@@ -180,7 +221,204 @@ cleanup:
 	return result;
 }
 
+static int find_gate_with(int in1, gate_op_t op, int in2,
+		gate_list_t const * restrict gate_list, 
+		wire_list_t const * restrict wire_list) {
+
+	bool has_next = wire_list[in1].has_next_left;
+	int gate_i = wire_list[in1].next_left;
+	while (has_next) {
+		gate_t gate = gate_list[gate_i].gate;
+		if (gate.right_in == in2 && gate.op == op)
+			return gate_i;
+
+		has_next = gate_list[gate_i].has_next_left;
+		gate_i = gate_list[gate_i].next_left;
+	}
+
+	has_next = wire_list[in1].has_next_right;
+	gate_i = wire_list[in1].next_right;
+	while (has_next) {
+		gate_t gate = gate_list[gate_i].gate;
+		if (gate.left_in == in2 && gate.op == op)
+			return gate_i;
+
+		has_next = gate_list[gate_i].has_next_right;
+		gate_i = gate_list[gate_i].next_right;
+	}
+	return -1;
+}
+
+typedef struct {
+	int sus_n;
+	union {
+		struct {
+			int sus_wires[3];
+		};
+		int next_carry_bit;
+	};
+} sus_wires_t;
+
+static sus_wires_t verify_adder(int bit, int carry_bit,
+		gate_list_t const * restrict gate_list, 
+		wire_list_t const * restrict wire_list, aoc_ex_t * e) {
+	int x_wire = get_bit_wire('x', bit);
+	int y_wire = get_bit_wire('y', bit);
+
+	int xor_wire = find_gate_with(x_wire, OP_XOR, y_wire, gate_list, wire_list);
+	if (xor_wire == -1) {
+		aoc_throw_fail(e, MSG_NO_OP);
+		return (sus_wires_t){ 0 };
+	}
+	int and_wire = find_gate_with(x_wire, OP_AND, y_wire, gate_list, wire_list);
+	if (and_wire == -1) {
+		aoc_throw_fail(e, MSG_NO_OP);
+		return (sus_wires_t){ 0 };
+	}
+
+	int out_bit;
+	int next_carry_bit;
+
+	if (carry_bit >= 0) {
+		int xor_wire2 = find_gate_with(xor_wire, OP_XOR, carry_bit, gate_list, wire_list);
+		if (xor_wire2 == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_wire, carry_bit }};
+
+		int and_wire2 = find_gate_with(xor_wire, OP_AND, carry_bit, gate_list, wire_list);
+		if (and_wire2 == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_wire, carry_bit }};
+
+		int or_wire = find_gate_with(and_wire, OP_OR, and_wire2, gate_list, wire_list);
+		if (or_wire == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { and_wire, and_wire2 }};
+
+		out_bit = xor_wire2;
+		next_carry_bit = or_wire;
+	} else {
+		out_bit = xor_wire;
+		next_carry_bit = and_wire;
+	}
+
+	if (out_bit != get_bit_wire('z', bit)) {
+		return (sus_wires_t){ .sus_n = 1, .sus_wires = { out_bit } };
+	} else {
+		return (sus_wires_t){ .sus_n = 0, .next_carry_bit = next_carry_bit };
+	}
+}
+
+
+static char * solve2(char const * const * lines, size_t lines_n, size_t const * line_lengths, aoc_ex_t * e) {
+	int64_t result = 0;
+
+	int x_bits = 0;
+	int y_bits = 0;
+
+	size_t line_i = 0;
+	for (; line_i < lines_n; ++line_i) {
+		if (line_lengths[line_i] != 6)
+			break;
+		int wire = parse_wire(lines[line_i], NULL, e);
+		if (*e)
+			goto cleanup;
+		if (wire == get_bit_wire('x', x_bits)) {
+			++x_bits;
+		}
+		else if (wire == get_bit_wire('y', y_bits)) {
+			++y_bits;
+		} else {
+			aoc_throw_fail(e, "can't validate adder with extra inputs");
+			return NULL;
+		}
+	}
+	if (x_bits != y_bits) {
+		aoc_throw_invalid_file(e);
+		return NULL;
+	}
+
+	wire_list_t * wire_list = assert_calloc(WIRES_COUNT, wire_list_t);
+	gate_list_t * gate_list = assert_calloc(WIRES_COUNT, gate_list_t);
+
+	// skip empty line
+	++line_i;
+
+	for (; line_i < lines_n; ++line_i) {
+		gate_t gate = parse_gate(lines[line_i], e);
+		if (*e)
+			goto cleanup;
+		fprint_gate(gate, stderr);
+		fputc('\n', stderr);
+		gate_list[gate.out].gate = gate;
+
+		if (wire_list[gate.left_in].has_next_left) {
+			int next = wire_list[gate.left_in].next_left;
+			wire_list[gate.left_in].next_left = gate.out;
+
+			gate_list[gate.out].next_left = next;
+			gate_list[gate.out].has_next_left = true;
+		} else {
+			wire_list[gate.left_in].next_left = gate.out;
+			wire_list[gate.left_in].has_next_left = true;
+		}
+
+		if (wire_list[gate.right_in].has_next_right) {
+			int next = wire_list[gate.right_in].next_right;
+			wire_list[gate.right_in].next_right = gate.out;
+
+			gate_list[gate.out].next_right = next;
+			gate_list[gate.out].has_next_right = true;
+		} else {
+			wire_list[gate.right_in].next_right = gate.out;
+			wire_list[gate.right_in].has_next_right = true;
+		}
+	}
+
+	size_t size = strlen("Suspicious wires: XXX, XXX\n") + 1;
+	char * msg = assert_malloc(size, char);
+
+	int carry_bit = -1;
+	sus_wires_t sus = { 0 };
+	for (int bit = 0; bit < x_bits; ++bit) {
+		sus = verify_adder(bit, carry_bit, gate_list, wire_list, e);
+		if (*e)
+			goto cleanup;
+
+		if (sus.sus_n == 0) {
+			carry_bit = sus.next_carry_bit;
+			continue;
+		} else {
+			break;
+		}
+	}
+	
+	if (sus.sus_n == 0) {
+		strcpy(msg, "No suspicious wires!");
+	} else {
+		char wire_name[4];
+		wire_num_to_name(sus.sus_wires[0], wire_name);
+		char wire_name2[4];
+		if (sus.sus_n == 2)
+			wire_num_to_name(sus.sus_wires[1], wire_name);
+
+		sprintf(msg, "Suspicious wires: %3s, %3s\n", wire_name, 
+				(sus.sus_n == 2) ? wire_name2 : "???");
+	}
+
+cleanup:
+	free(wire_list);
+	free(gate_list);
+	return msg;
+}
+
+
+static char * solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
+	if (part == 1) {
+		return make_result_str(solve1(lines, lines_n, line_lengths, e));
+	} else {
+		return solve2(lines, lines_n, line_lengths, e);
+	}
+}
+
 
 int main(int argc, char * argv[]) {
-	aoc_main_const_lines(argc, argv, 1, solve);
+	aoc_main_lines_to_str(argc, argv, 2, solve);
 }
