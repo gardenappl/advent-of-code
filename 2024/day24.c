@@ -72,7 +72,9 @@ static void parse_gates(char const * const * lines, size_t const * line_lengths,
 
 static void sort_gates(gate_t * in_gates, gate_t * out_gates, size_t n, wire_sort_t * wires);
 
-static void eval_gates(gate_t * gates, size_t gates_n, bool * wires);
+static void eval_gates(gate_t const * gates, size_t gates_n, bool * wires);
+
+static int64_t parse_output(bool const * wires, wire_sort_t const * wires_sort);
 
 
 static int64_t solve(char const * const * lines, size_t lines_n, size_t const * line_lengths, int32_t part, aoc_ex_t * e) {
@@ -115,31 +117,11 @@ static int64_t solve(char const * const * lines, size_t lines_n, size_t const * 
 
 	eval_gates(gates_sorted, gates_n, wire_values);
 
-	int64_t result = 0;
-	int z00_wire = (ALPHANUMS - 1) * ALPHANUMS * ALPHANUMS;
-	char z_wire_str[4];
-
-	wire_num_to_name(z00_wire, z_wire_str);
-	fprintf(stderr, "values, starting from %s:\n", z_wire_str);
-
-	for (int bit = 0; bit < 64; ++bit) {
-		int z_wire = z00_wire + (bit / 10) * ALPHANUMS + (bit % 10);
-
-		if (!wires_sort[z_wire].exists)
-			break;
-
-		if (wire_values[z_wire]) {
-			wire_num_to_name(z_wire, z_wire_str);
-			fprintf(stderr, "%s is TRUE\n", z_wire_str);
-			result |= (1L << bit);
-		} else {
-			wire_num_to_name(z_wire, z_wire_str);
-			fprintf(stderr, "%s is FALSE\n", z_wire_str);
-		}
-	}
+	int64_t result = parse_output(wire_values, wires_sort);
 
 cleanup:;
 	free(gates);
+	free(gates_sorted);
 cleanup_wires:
 	free(wires_sort);
 	free(wire_values);
@@ -262,7 +244,7 @@ static void sort_gates(gate_t * restrict in_gates, gate_t * restrict out_gates, 
 	// assert(out_i == n);
 }
 
-static void eval_gates(gate_t * gates, size_t gates_n, bool * wires) {
+static void eval_gates(gate_t const * gates, size_t gates_n, bool * wires) {
 	for (size_t i = 0; i < gates_n; ++i) {
 		gate_t gate = gates[i];
 
@@ -282,6 +264,23 @@ static void eval_gates(gate_t * gates, size_t gates_n, bool * wires) {
 		}
 		wires[gate.out] = out;
 	}
+}
+
+static int64_t parse_output(bool const * wire_values, wire_sort_t const * wires_sort) {
+	int64_t result = 0;
+	int z00_wire = (ALPHANUMS - 1) * ALPHANUMS * ALPHANUMS;
+
+	for (int bit = 0; bit < 64; ++bit) {
+		int z_wire = z00_wire + (bit / 10) * ALPHANUMS + (bit % 10);
+
+		if (!wires_sort[z_wire].exists)
+			break;
+
+		if (wire_values[z_wire]) {
+			result |= (1L << bit);
+		}
+	}
+	return result;
 }
 
 
