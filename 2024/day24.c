@@ -10,6 +10,7 @@
 #define WIRES_COUNT (ALPHANUMS * ALPHANUMS * ALPHANUMS)
 #define WIRE_NAME_LEN 3
 #define WIRE_NAME_LEN_S AOC_STR(WIRE_NAME_LEN)
+#define SWAPPED_WIRES_N 8
 
 #define MSG_NO_OP "did not find gate with expected op"
 
@@ -38,12 +39,16 @@ typedef struct {
 	int next_right;
 } gate_list_t;
 
+typedef enum : char { STATUS_NONE, STATUS_VERIFIED, STATUS_SWAPPED } wire_status_t;
+
 typedef struct {
 	bool has_next_left;
 	int next_left;
 
 	bool has_next_right;
 	int next_right;
+
+	wire_status_t status;
 } wire_list_t;
 
 
@@ -261,36 +266,53 @@ typedef struct {
 
 static sus_wires_t verify_adder(int bit, int carry_bit,
 		gate_list_t const * restrict gate_list, 
-		wire_list_t const * restrict wire_list, aoc_ex_t * e) {
+		wire_list_t * restrict wire_list, aoc_ex_t * e) {
 	int x_wire = get_bit_wire('x', bit);
 	int y_wire = get_bit_wire('y', bit);
 
-	int xor_wire = find_gate_with(x_wire, OP_XOR, y_wire, gate_list, wire_list);
-	if (xor_wire == -1) {
-		aoc_throw_fail(e, MSG_NO_OP);
-		return (sus_wires_t){ 0 };
-	}
-	int and_wire = find_gate_with(x_wire, OP_AND, y_wire, gate_list, wire_list);
-	if (and_wire == -1) {
-		aoc_throw_fail(e, MSG_NO_OP);
-		return (sus_wires_t){ 0 };
-	}
 
+	int xor_gate = find_gate_with(x_wire, OP_XOR, y_wire, gate_list, wire_list);
+	if (xor_gate == -1) {
+		aoc_throw_fail(e, MSG_NO_OP);
+		return (sus_wires_t){ 0 };
+	}
+	int xor_wire = gate_list[xor_gate].gate.out;
+
+
+	int and_gate = find_gate_with(x_wire, OP_AND, y_wire, gate_list, wire_list);
+	if (and_gate == -1) {
+		aoc_throw_fail(e, MSG_NO_OP);
+		return (sus_wires_t){ 0 };
+	}
+	int and_wire = gate_list[and_gate].gate.out;
+
+
+	int xor_gate2, and_gate2, or_gate;
+	int xor_wire2, and_wire2, or_wire;
 	int out_bit;
 	int next_carry_bit;
 
 	if (carry_bit >= 0) {
-		int xor_wire2 = find_gate_with(xor_wire, OP_XOR, carry_bit, gate_list, wire_list);
-		if (xor_wire2 == -1)
-			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_wire, carry_bit }};
+		xor_gate2 = find_gate_with(xor_wire, OP_XOR, carry_bit, 
+				gate_list, wire_list);
+		if (xor_gate2 == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_gate, carry_bit }};
+		xor_wire2 = gate_list[xor_gate2].gate.out;
 
-		int and_wire2 = find_gate_with(xor_wire, OP_AND, carry_bit, gate_list, wire_list);
-		if (and_wire2 == -1)
-			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_wire, carry_bit }};
 
-		int or_wire = find_gate_with(and_wire, OP_OR, and_wire2, gate_list, wire_list);
-		if (or_wire == -1)
-			return (sus_wires_t){ .sus_n = 2, .sus_wires = { and_wire, and_wire2 }};
+		and_gate2 = find_gate_with(xor_wire, OP_AND, carry_bit, 
+				gate_list, wire_list);
+		if (and_gate2 == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { xor_gate, carry_bit }};
+		and_wire2 = gate_list[and_gate2].gate.out;
+
+
+		or_gate = find_gate_with(gate_list[and_gate].gate.out, OP_OR, gate_list[and_gate2].gate.out, 
+				gate_list, wire_list);
+		if (or_gate == -1)
+			return (sus_wires_t){ .sus_n = 2, .sus_wires = { and_gate, and_gate2 }};
+		or_wire = gate_list[or_gate].gate.out;
+
 
 		out_bit = xor_wire2;
 		next_carry_bit = or_wire;
@@ -301,13 +323,23 @@ static sus_wires_t verify_adder(int bit, int carry_bit,
 
 	if (out_bit != get_bit_wire('z', bit)) {
 		return (sus_wires_t){ .sus_n = 1, .sus_wires = { out_bit } };
-	} else {
-		return (sus_wires_t){ .sus_n = 0, .next_carry_bit = next_carry_bit };
 	}
+
+	wire_list[xor_wire].status = STATUS_VERIFIED;
+	wire_list[and_wire].status = STATUS_VERIFIED;
+	if (carry_bit >= 0) {
+		wire_list[xor_wire2].status = STATUS_VERIFIED;
+		wire_list[and_wire2].status = STATUS_VERIFIED;
+		wire_list[or_wire].status = STATUS_VERIFIED;
+	}
+
+	return (sus_wires_t){ .sus_n = 0, .next_carry_bit = next_carry_bit };
 }
 
 
 static char * solve2(char const * const * lines, size_t lines_n, size_t const * line_lengths, aoc_ex_t * e) {
+	char * msg = NULL;
+
 	int64_t result = 0;
 
 	int x_bits = 0;
@@ -372,35 +404,93 @@ static char * solve2(char const * const * lines, size_t lines_n, size_t const * 
 		}
 	}
 
-	size_t size = strlen("Suspicious wires: XXX, XXX\n") + 1;
-	char * msg = assert_malloc(size, char);
+	int swapped_wires[SWAPPED_WIRES_N];
+	int swapped_wires_n = 0;
 
 	int carry_bit = -1;
-	sus_wires_t sus = { 0 };
 	for (int bit = 0; bit < x_bits; ++bit) {
-		sus = verify_adder(bit, carry_bit, gate_list, wire_list, e);
+		sus_wires_t sus = verify_adder(bit, carry_bit, gate_list, wire_list, e);
 		if (*e)
 			goto cleanup;
 
+		for (int i = 0; i < sus.sus_n; ++i) {
+			if (swapped_wires_n == SWAPPED_WIRES_N) {
+				aoc_throw_fail(e, "Too many swapped wires!");
+				goto cleanup;
+			}
+			int sus_wire = sus.sus_wires[i];
+			char sus_wire_name[WIRE_NAME_LEN + 1];
+			wire_num_to_name(sus_wire, sus_wire_name);
+			fprintf(stderr, "Suspicious gate: %s\n", sus_wire_name);
+
+			for (int swap_wire = 0; swap_wire < WIRES_COUNT; ++swap_wire) {
+				if (gate_list[swap_wire].gate.op == OP_NONE)
+					continue;
+				switch (wire_list[swap_wire].status) {
+					case STATUS_VERIFIED:
+						continue;
+					case STATUS_SWAPPED:
+						aoc_throw_fail(e, "swapped in previous adder?");
+						goto cleanup;
+					case STATUS_NONE:
+						break;
+				}
+
+				char swap_wire_name[WIRE_NAME_LEN + 1];
+				wire_num_to_name(swap_wire, swap_wire_name);
+				// fprintf(stderr, "Try swapping with: %s\n", swap_wire_name);
+
+				// Swap
+				gate_list[swap_wire].gate.out = sus_wire;
+				wire_list[swap_wire].status = STATUS_SWAPPED;
+				gate_list[sus_wire].gate.out = swap_wire;
+				wire_list[sus_wire].status = STATUS_SWAPPED;
+
+				sus_wires_t sus2 = verify_adder(bit, carry_bit, gate_list, wire_list, e);
+				if (*e)
+					goto cleanup;
+
+				if (sus2.sus_n > 0) {
+					// Undo swap and try another
+					gate_list[swap_wire].gate.out = swap_wire;
+					wire_list[swap_wire].status = STATUS_NONE;
+					gate_list[sus_wire].gate.out = sus_wire;
+					wire_list[sus_wire].status = STATUS_NONE;
+				} else {
+					// verify_adder should set verified status
+					swapped_wires[swapped_wires_n] = sus_wire;
+					swapped_wires[swapped_wires_n + 1] = swap_wire;
+					swapped_wires_n += 2;
+
+					fprintf(stderr, "Swapped %s and %s.\n", sus_wire_name, swap_wire_name);
+					carry_bit = sus2.next_carry_bit;
+					goto continue_next_adder;
+				}
+			}
+		}
+
 		if (sus.sus_n == 0) {
 			carry_bit = sus.next_carry_bit;
-			continue;
 		} else {
-			break;
+			aoc_throw_fail(e, "Could not fix adder.");
+			goto cleanup;
 		}
+continue_next_adder:;
 	}
-	
-	if (sus.sus_n == 0) {
-		strcpy(msg, "No suspicious wires!");
-	} else {
-		char wire_name[4];
-		wire_num_to_name(sus.sus_wires[0], wire_name);
-		char wire_name2[4];
-		if (sus.sus_n == 2)
-			wire_num_to_name(sus.sus_wires[1], wire_name);
 
-		sprintf(msg, "Suspicious wires: %3s, %3s\n", wire_name, 
-				(sus.sus_n == 2) ? wire_name2 : "???");
+	qsort(swapped_wires, swapped_wires_n, sizeof(int), aoc_compare_int);
+
+	size_t size = strlen("XXX,") * SWAPPED_WIRES_N;
+	msg = assert_calloc(size, char);
+	
+	char * s = msg;
+	for (int i = 0; i < swapped_wires_n; ++i) {
+		char wire_name[4];
+		wire_num_to_name(swapped_wires[i], wire_name);
+		if (i != swapped_wires_n - 1)
+			wire_name[3] = ',';
+		memcpy(s, wire_name, 4 * sizeof(char));
+		s += 4;
 	}
 
 cleanup:
