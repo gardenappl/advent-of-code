@@ -217,7 +217,7 @@ static int64_t solve1(char const * const * lines, size_t lines_n, size_t const *
 		if (*e)
 			goto cleanup;
 		if (z_bit_value)
-			result |= (1L << z_bit);
+			result |= (1LL << z_bit);
 	}
 	fputc('\n', stderr);
 cleanup:
